@@ -50,9 +50,31 @@ whatsapp_bot/
 - **RESTful API**: Debug endpoints for session management
 - **Environment-based Configuration**: Secure credential management
 
-## 📋 Mental Health Questions
+## 🔄 Conversation Flow
 
-The bot asks the following triage questions in sequence:
+### 1. **Consent Process**
+When a user first contacts the bot:
+
+1. **Greeting Message**: Welcome message
+2. **Informed Consent**: Full legal consent form with:
+   - Service information
+   - Data treatment (Colombian Law 1581/2012)
+   - Privacy & confidentiality
+   - User rights
+   - Service limitations
+   - Consent declaration
+
+3. **Interactive Buttons**: 
+   - "Sí, acepto" (Yes, I accept)
+   - "No, gracias" (No, thanks)
+
+4. **Response Handling**:
+   - **If "Yes"**: Proceed to mental health questionnaire
+   - **If "No"**: Send goodbye message and end conversation
+
+### 2. **Mental Health Questions**
+
+After consent is given, the bot asks these triage questions:
 
 1. **Basic Information**
    - Full name
@@ -171,19 +193,32 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 
 ```mermaid
 graph TD
-    A[User sends message] --> B{First message?}
-    B -->|Yes| C[Ask first question]
-    B -->|No| D[Save answer]
-    D --> E{All questions answered?}
-    E -->|No| F[Ask next question]
-    E -->|Yes| G[Send to API]
-    G --> H{Continue conversation?}
-    H -->|Yes| I[Ask additional questions]
-    H -->|No| J[End conversation]
-    C --> K[Wait for answer]
-    F --> K
-    I --> K
-    K --> A
+    A[User sends message] --> B{New session?}
+    B -->|Yes| C[Send greeting]
+    C --> D[Send consent form with buttons]
+    D --> E[Wait for consent response]
+    E --> F{Consent given?}
+    F -->|Yes| G[Start questionnaire]
+    F -->|No| H[Send goodbye message]
+    H --> I[End conversation]
+    G --> J[Ask first question]
+    J --> K[Wait for answer]
+    K --> L[Save answer]
+    L --> M{All questions answered?}
+    M -->|No| N[Ask next question]
+    M -->|Yes| O[Send to API]
+    O --> P{Continue conversation?}
+    P -->|Yes| Q[Ask additional questions]
+    P -->|No| I
+    N --> K
+    Q --> K
+    B -->|No| R{Session state?}
+    R -->|Waiting consent| E
+    R -->|Waiting answer| L
+    R -->|Consent declined| H
+    R -->|Processing API| S[Ask to wait]
+    R -->|Ended| T[Restart flow]
+    T --> C
 ```
 
 ## 🏥 Mental Health Considerations

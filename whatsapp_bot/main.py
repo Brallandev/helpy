@@ -106,7 +106,9 @@ async def get_all_sessions():
             "state": session.state.value,
             "answers_count": len(session.answers),
             "last_activity": session.last_activity.isoformat(),
-            "first_question_asked": session.first_question_asked
+            "first_question_asked": session.first_question_asked,
+            "consent_given": session.consent_given,
+            "greeting_sent": session.greeting_sent
         }
         for phone, session in sessions.items()
     }

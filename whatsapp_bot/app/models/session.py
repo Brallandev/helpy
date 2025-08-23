@@ -10,9 +10,11 @@ from .question import Answer
 
 class SessionState(Enum):
     """Possible states of a user session."""
+    WAITING_FOR_CONSENT = "waiting_for_consent"
     WAITING_FOR_ANSWER = "waiting_for_answer"
     PROCESSING_API = "processing_api"
     CONVERSATION_ENDED = "conversation_ended"
+    CONSENT_DECLINED = "consent_declined"
 
 
 @dataclass
@@ -21,7 +23,9 @@ class UserSession:
     phone_number: str
     current_question_index: int = 0
     answers: List[Answer] = field(default_factory=list)
-    state: SessionState = SessionState.WAITING_FOR_ANSWER
+    state: SessionState = SessionState.WAITING_FOR_CONSENT
     created_at: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
     first_question_asked: bool = False  # Track if we've asked the first question
+    consent_given: bool = False  # Track if user has given consent
+    greeting_sent: bool = False  # Track if greeting has been sent

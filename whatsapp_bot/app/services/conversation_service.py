@@ -5,6 +5,13 @@ from typing import Dict, Any, List
 from app.models.session import UserSession, SessionState
 from app.models.question import Answer, Question
 from app.config.questions import MENTAL_HEALTH_QUESTIONS
+from app.config.messages import (
+    GREETING_MESSAGE, 
+    CONSENT_MESSAGE, 
+    CONSENT_DECLINED_MESSAGE, 
+    CONSENT_BUTTONS, 
+    CONSENT_BUTTON_TEXT
+)
 from app.utils.session_manager import SessionManager
 from app.services.whatsapp_service import WhatsAppService
 from app.services.api_service import ExternalAPIService
@@ -41,11 +48,19 @@ class ConversationService:
             await self._handle_conversation_restart(phone_number, session)
             return
         
+        if session.state == SessionState.CONSENT_DECLINED:
+            await self._handle_consent_declined(phone_number, session)
+            return
+        
         if session.state == SessionState.PROCESSING_API:
             await self._handle_processing_state(phone_number)
             return
         
-        # Handle the main conversation flow
+        if session.state == SessionState.WAITING_FOR_CONSENT:
+            await self._handle_consent_flow(session, message_text)
+            return
+        
+        # Handle the main conversation flow (questions)
         await self._handle_conversation_flow(session, message_text)
     
     async def _handle_conversation_restart(self, phone_number: str, session: UserSession) -> None:
@@ -64,11 +79,93 @@ class ConversationService:
         print(f"[SESSION_RESET] New session: index={new_session.current_question_index}, "
               f"answers={len(new_session.answers)}")
         
-        # Ask the first question of the new conversation
-        current_question = self.session_manager.get_current_question(new_session)
+        # Start the consent flow for the new conversation
+        await self._start_consent_flow(new_session)
+    
+    async def _handle_consent_declined(self, phone_number: str, session: UserSession) -> None:
+        """Handle when user has declined consent."""
+        print(f"[CONSENT_DECLINED] User declined consent, sending goodbye message")
+        await self.whatsapp_service.send_text_message(phone_number, CONSENT_DECLINED_MESSAGE)
+        session.state = SessionState.CONVERSATION_ENDED
+    
+    async def _handle_consent_flow(self, session: UserSession, message_text: str) -> None:
+        """Handle the consent flow logic."""
+        # Send greeting first if not sent
+        if not session.greeting_sent:
+            print("[SENDING_GREETING] Sending greeting message")
+            await self.whatsapp_service.send_text_message(session.phone_number, GREETING_MESSAGE)
+            session.greeting_sent = True
+            
+            # Send consent message with buttons
+            print("[SENDING_CONSENT] Sending consent message with buttons")
+            await self.whatsapp_service.send_interactive_message(
+                session.phone_number,
+                CONSENT_MESSAGE,
+                CONSENT_BUTTON_TEXT,
+                CONSENT_BUTTONS
+            )
+            return
+        
+        # Process consent response
+        await self._process_consent_response(session, message_text)
+    
+    async def _start_consent_flow(self, session: UserSession) -> None:
+        """Start the consent flow for a new session."""
+        print("[STARTING_CONSENT_FLOW] Beginning consent process")
+        session.state = SessionState.WAITING_FOR_CONSENT
+        
+        # Send greeting message
+        print("[SENDING_GREETING] Sending greeting message")
+        await self.whatsapp_service.send_text_message(session.phone_number, GREETING_MESSAGE)
+        session.greeting_sent = True
+        
+        # Send consent message with buttons
+        print("[SENDING_CONSENT] Sending consent message with buttons")
+        await self.whatsapp_service.send_interactive_message(
+            session.phone_number,
+            CONSENT_MESSAGE,
+            CONSENT_BUTTON_TEXT,
+            CONSENT_BUTTONS
+        )
+    
+    async def _process_consent_response(self, session: UserSession, message_text: str) -> None:
+        """Process the user's consent response."""
+        message_lower = message_text.lower().strip()
+        
+        # Check for positive consent (button response or text)
+        if (message_lower in ["sí, acepto", "si, acepto", "si acepto", "sí acepto", "acepto", "si", "sí", "yes"] or
+            "consent_yes" in message_text):
+            print("[CONSENT_ACCEPTED] User accepted consent")
+            session.consent_given = True
+            session.state = SessionState.WAITING_FOR_ANSWER
+            
+            # Start the questionnaire
+            await self._start_questionnaire(session)
+            
+        # Check for negative consent
+        elif (message_lower in ["no, gracias", "no gracias", "no", "decline"] or
+              "consent_no" in message_text):
+            print("[CONSENT_DECLINED] User declined consent")
+            session.consent_given = False
+            session.state = SessionState.CONSENT_DECLINED
+            await self.whatsapp_service.send_text_message(session.phone_number, CONSENT_DECLINED_MESSAGE)
+            
+        else:
+            # Ask for clarification
+            print("[CONSENT_UNCLEAR] User response unclear, asking for clarification")
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                "Por favor, responde 'Sí, acepto' para continuar o 'No, gracias' si no deseas proceder."
+            )
+    
+    async def _start_questionnaire(self, session: UserSession) -> None:
+        """Start the mental health questionnaire."""
+        print("[STARTING_QUESTIONNAIRE] Beginning mental health questions")
+        current_question = self.session_manager.get_current_question(session)
         if current_question:
             print(f"[ASKING_FIRST_QUESTION] {current_question.text[:50]}...")
-            await self.whatsapp_service.send_text_message(phone_number, current_question.text)
+            await self.whatsapp_service.send_text_message(session.phone_number, current_question.text)
+            session.first_question_asked = True
     
     async def _handle_processing_state(self, phone_number: str) -> None:
         """Handle messages received while processing API call."""
@@ -79,20 +176,18 @@ class ConversationService:
         )
     
     async def _handle_conversation_flow(self, session: UserSession, message_text: str) -> None:
-        """Handle the main conversation flow logic."""
-        # Simple logic: if we haven't asked the first question yet, ask it
-        if not session.first_question_asked:
-            print("[FIRST_MESSAGE] Asking first question")
-            current_question = self.session_manager.get_current_question(session)
-            if current_question:
-                print(f"[ASKING_QUESTION] {current_question.text[:50]}...")
-                await self.whatsapp_service.send_text_message(
-                    session.phone_number, current_question.text
-                )
-                session.first_question_asked = True
+        """Handle the main conversation flow logic for questionnaire phase."""
+        # User should have consent at this point
+        if not session.consent_given:
+            print("[ERROR] User in questionnaire phase without consent!")
             return
         
-        # We've asked the first question, so this message is an answer
+        # If we haven't started the questionnaire yet, start it
+        if not session.first_question_asked:
+            await self._start_questionnaire(session)
+            return
+        
+        # We're in the questionnaire, so this message is an answer
         print(f"[PROCESSING_ANSWER] Received: {message_text}")
         current_question = self.session_manager.get_current_question(session)
         
