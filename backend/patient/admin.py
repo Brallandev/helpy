@@ -4,7 +4,7 @@ from .models import Patient, MedicalHistory, PatientDocument
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
-    list_display = ['patient_id', 'full_name', 'age', 'gender', 'phone_number', 'status', 'registration_date']
+    list_display = ['patient_id', 'full_name', 'age', 'gender', 'phone_number', 'is_active', 'registration_date']
     list_filter = ['gender', 'blood_type', 'is_active', 'registration_date']
     search_fields = ['patient_id', 'first_name', 'last_name', 'phone_number', 'email']
     readonly_fields = ['registration_date', 'age']
@@ -23,24 +23,20 @@ class PatientAdmin(admin.ModelAdmin):
         }),
     )
     
-    def status(self, obj):
-        if obj.is_active:
-            return format_html('<span style="color: green;">Active</span>')
-        return format_html('<span style="color: red;">Inactive</span>')
-    status.short_description = 'Status'
+
 
 @admin.register(MedicalHistory)
 class MedicalHistoryAdmin(admin.ModelAdmin):
-    list_display = ['patient', 'condition', 'diagnosis_date', 'outcome', 'created_at']
-    list_filter = ['diagnosis_date', 'outcome', 'created_at']
-    search_fields = ['patient__first_name', 'patient__last_name', 'condition']
-    date_hierarchy = 'diagnosis_date'
+    list_display = ['patient', 'details', 'approved', 'created_at', 'updated_at']
+    list_filter = ['approved', 'created_at', 'updated_at']
+    search_fields = ['patient__first_name', 'patient__last_name', 'details']
+    date_hierarchy = 'created_at'
     fieldsets = (
         ('Patient Information', {
             'fields': ('patient',)
         }),
         ('Medical Details', {
-            'fields': ('condition', 'diagnosis_date', 'treatment', 'outcome', 'notes')
+            'fields': ('details', 'approved')
         }),
     )
 

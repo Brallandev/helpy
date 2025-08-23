@@ -78,12 +78,12 @@ class MedicalHistory(models.Model):
     approved = models.BooleanField(default=False)
     
     class Meta:
-        ordering = ['-diagnosis_date']
+        ordering = ['-created_at']
         verbose_name = "Medical History"
         verbose_name_plural = "Medical Histories"
     
     def __str__(self):
-        return f"{self.patient.full_name} - {self.condition}"
+        return f"{self.patient.full_name} - {self.created_at.strftime('%Y-%m-%d')}"
 
 class PatientDocument(models.Model):
     DOCUMENT_TYPES = [
