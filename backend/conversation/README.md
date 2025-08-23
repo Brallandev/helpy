@@ -1,164 +1,159 @@
 # Conversation App
 
-A Django app for saving and reconstructing conversation messages with proper ordering and participant management.
+A Django app for saving and managing chat data with question-answer pairs and session management.
 
 ## Features
 
-- **Conversation Management**: Create, update, and archive conversations
-- **Message Storage**: Store messages with role-based categorization (user, assistant, system)
+- **Chat Session Management**: Create and manage chat sessions with unique identifiers
+- **Message Storage**: Store question-answer pairs with proper ordering
 - **Automatic Ordering**: Messages are automatically ordered using an index system
-- **Participant Management**: Add/remove participants from conversations
-- **Reconstruction**: Reconstruct conversations in their original order
+- **Session Processing**: Track whether chat sessions have been processed
 - **Bulk Operations**: Create multiple messages at once
 - **RESTful API**: Full CRUD operations via Django REST Framework
+- **Export Functionality**: Export chat data in the original format
 
 ## Models
 
-### Conversation
-- `title`: Optional title for the conversation
-- `participants`: Many-to-many relationship with User model
-- `created_at`: Timestamp when conversation was created
-- `updated_at`: Timestamp when conversation was last updated
-- `is_active`: Boolean flag to archive conversations
+### ChatData
+- `session_id`: Unique identifier for the chat session
+- `created_at`: Timestamp when session was created
+- `updated_at`: Timestamp when session was last updated
+- `is_processed`: Boolean flag to track processing status
+- `notes`: Additional notes about the chat session
 
-### Message
-- `conversation`: Foreign key to Conversation
-- `sender`: Foreign key to User (optional for system messages)
-- `role`: Choice field (user, assistant, system)
-- `content`: Text content of the message
-- `timestamp`: When the message was created
+### ChatMessage
+- `chat_data`: Foreign key to ChatData
+- `question`: The question asked in the conversation
+- `answer`: The answer provided
 - `order_index`: Integer for maintaining message order
+- `created_at`: When the message was created
 
 ## API Endpoints
 
-### Conversations
+### Chat Data
 
-- `GET /api/conversations/` - List user's conversations
-- `POST /api/conversations/` - Create new conversation
-- `GET /api/conversations/{id}/` - Get conversation details
-- `PUT /api/conversations/{id}/` - Update conversation
-- `DELETE /api/conversations/{id}/` - Delete conversation
-- `POST /api/conversations/{id}/add_participant/` - Add participant
-- `POST /api/conversations/{id}/remove_participant/` - Remove participant
-- `POST /api/conversations/{id}/archive/` - Archive conversation
-- `GET /api/conversations/{id}/reconstruct/` - Reconstruct conversation in order
+- `GET /api/chat-data/` - List all chat sessions
+- `POST /api/chat-data/` - Create new chat session with messages
+- `GET /api/chat-data/{id}/` - Get chat session details
+- `PUT /api/chat-data/{id}/` - Update chat session
+- `DELETE /api/chat-data/{id}/` - Delete chat session
+- `POST /api/chat-data/receive_chat/` - Receive chat data in bulk
+- `POST /api/chat-data/{id}/mark_processed/` - Mark session as processed
+- `GET /api/chat-data/{id}/export/` - Export chat data
+- `GET /api/chat-data/{id}/messages/` - Get all messages for a session
 
-### Messages
+### Chat Messages
 
-- `GET /api/messages/` - List user's messages
-- `POST /api/messages/` - Create new message
-- `GET /api/messages/{id}/` - Get message details
-- `PUT /api/messages/{id}/` - Update message
-- `DELETE /api/messages/{id}/` - Delete message
-- `GET /api/messages/by_conversation/?conversation_id={id}` - Get messages by conversation
-- `POST /api/messages/bulk_create/` - Create multiple messages
+- `GET /api/chat-messages/` - List all chat messages
+- `POST /api/chat-messages/` - Create new chat message
+- `GET /api/chat-messages/{id}/` - Get message details
+- `PUT /api/chat-messages/{id}/` - Update message
+- `DELETE /api/chat-messages/{id}/` - Delete message
+- `GET /api/chat-messages/by_session/?session_id={id}` - Get messages by session
+- `POST /api/chat-messages/bulk_create/` - Create multiple messages
 
 ## Usage Examples
 
-### Creating a Conversation
+### Creating a Chat Session with Messages
 
 ```python
 # Via API
-POST /api/conversations/
+POST /api/chat-data/
 {
-    "title": "Medical Consultation",
-    "participants": [1, 2]  # User IDs
-}
-```
-
-### Adding Messages
-
-```python
-# Single message
-POST /api/messages/
-{
-    "conversation": 1,
-    "role": "user",
-    "content": "Hello, I have a question about my symptoms."
-}
-
-# Multiple messages
-POST /api/messages/bulk_create/
-{
-    "conversation_id": 1,
-    "messages": [
-        {"role": "user", "content": "I have a headache"},
-        {"role": "assistant", "content": "How long have you had it?"},
-        {"role": "user", "content": "Since yesterday morning"}
-    ]
-}
-```
-
-### Reconstructing a Conversation
-
-```python
-GET /api/conversations/1/reconstruct/
-```
-
-Response:
-```json
-{
-    "conversation_id": 1,
-    "title": "Medical Consultation",
-    "created_at": "2024-01-15T10:00:00Z",
-    "message_count": 3,
-    "messages": [
+    "session_id": "chat_abc123",
+    "notes": "Medical consultation session",
+    "chat": [
         {
-            "order": 1,
-            "role": "user",
-            "sender": "patient123",
-            "content": "I have a headache",
-            "timestamp": "2024-01-15T10:00:00Z"
+            "question": "What are your symptoms?",
+            "answer": "I have a headache and fever."
         },
         {
-            "order": 2,
-            "role": "assistant",
-            "sender": "System",
-            "content": "How long have you had it?",
-            "timestamp": "2024-01-15T10:01:00Z"
-        },
-        {
-            "order": 3,
-            "role": "user",
-            "sender": "patient123",
-            "content": "Since yesterday morning",
-            "timestamp": "2024-01-15T10:02:00Z"
+            "question": "How long have you had these symptoms?",
+            "answer": "Since yesterday morning."
         }
     ]
 }
 ```
 
-## Admin Interface
+### Receiving Chat Data
 
-The app includes a Django admin interface for managing conversations and messages:
-
-- **ConversationAdmin**: Manage conversations with participant management
-- **MessageAdmin**: View and manage messages with content previews
-
-## Testing
-
-Run the tests with:
-
-```bash
-python manage.py test conversation
+```python
+# Receive chat data in bulk
+POST /api/chat-data/receive_chat/
+{
+    "chat": [
+        {
+            "question": "What is your main concern?",
+            "answer": "I'm experiencing chest pain."
+        },
+        {
+            "question": "When did this start?",
+            "answer": "About an hour ago."
+        }
+    ]
+}
 ```
 
-## Security Features
+### Adding Individual Messages
 
-- **Authentication Required**: All endpoints require user authentication
-- **Access Control**: Users can only access conversations they participate in
-- **Validation**: Messages cannot be added to archived conversations
-- **Atomic Operations**: Bulk operations use database transactions
+```python
+# Single message
+POST /api/chat-messages/
+{
+    "chat_data": 1,
+    "question": "Are you taking any medications?",
+    "answer": "Yes, I take aspirin daily.",
+    "order_index": 3
+}
 
-## Dependencies
+# Multiple messages
+POST /api/chat-messages/bulk_create/
+{
+    "session_id": "chat_abc123",
+    "messages": [
+        {"question": "Any allergies?", "answer": "No known allergies"},
+        {"question": "Family history?", "answer": "Father had heart disease"}
+    ]
+}
+```
 
-- Django 5.2+
-- Django REST Framework
-- PostgreSQL (recommended for production)
+### Exporting Chat Data
 
-## Installation
+```python
+GET /api/chat-data/1/export/
+```
 
-1. Add 'conversation' to INSTALLED_APPS in settings.py
-2. Include conversation.urls in your main URL configuration
-3. Run migrations: `python manage.py makemigrations conversation && python manage.py migrate`
-4. Create a superuser to access the admin interface: `python manage.py createsuperuser`
+Response:
+```json
+{
+    "chat": [
+        {
+            "question": "What are your symptoms?",
+            "answer": "I have a headache and fever."
+        },
+        {
+            "question": "How long have you had these symptoms?",
+            "answer": "Since yesterday morning."
+        }
+    ]
+}
+```
+
+### Marking Session as Processed
+
+```python
+POST /api/chat-data/1/mark_processed/
+```
+
+## Data Structure
+
+The app stores chat data in a hierarchical structure:
+
+1. **ChatData**: Represents a complete chat session
+2. **ChatMessage**: Individual question-answer pairs within a session
+
+Each message has an `order_index` to maintain the conversation flow, and sessions can be marked as processed to track workflow status.
+
+## Authentication
+
+All API endpoints require authentication. Use Django's built-in authentication system or integrate with your preferred authentication method.

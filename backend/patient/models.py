@@ -72,13 +72,10 @@ class Patient(models.Model):
 
 class MedicalHistory(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='medical_histories')
-    condition = models.CharField(max_length=200)
-    diagnosis_date = models.DateField()
-    treatment = models.TextField()
-    outcome = models.CharField(max_length=100, blank=True)
-    notes = models.TextField(blank=True)
+    details = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    approved = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-diagnosis_date']
