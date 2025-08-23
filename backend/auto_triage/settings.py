@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'appointment',
     'rooms',
     'schedule',
+    'conversation',
 ]
 
 MIDDLEWARE = [

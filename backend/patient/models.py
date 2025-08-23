@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 
 class Patient(models.Model):
@@ -22,7 +21,6 @@ class Patient(models.Model):
     ]
     
     # Basic Information
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     patient_id = models.CharField(max_length=20, unique=True, help_text="Unique patient identifier")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
