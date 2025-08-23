@@ -10,7 +10,7 @@ class PatientAdmin(admin.ModelAdmin):
     readonly_fields = ['registration_date', 'age']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('user', 'patient_id', 'first_name', 'last_name', 'date_of_birth', 'gender')
+            'fields': ('patient_id', 'first_name', 'last_name', 'date_of_birth', 'gender')
         }),
         ('Contact Information', {
             'fields': ('phone_number', 'email', 'address', 'emergency_contact_name', 'emergency_contact_phone')

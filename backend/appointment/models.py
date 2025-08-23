@@ -194,3 +194,8 @@ class AppointmentWaitlist(models.Model):
     
     def __str__(self):
         return f"{self.patient.full_name} - {self.appointment_type.name} with Dr. {self.doctor.last_name}"
+
+class AppointmentDesire(models.Model):
+    patient = models.ForeignKey('patient.Patient', on_delete=models.CASCADE, related_name='appointment_desires')
+    created_at = models.DateTimeField(auto_now_add=True)
+    want_appointment = models.BooleanField(default=False)
