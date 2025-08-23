@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Patient
@@ -8,6 +9,7 @@ from .models import Patient
 # Create your views here.
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def patient_list(request):
     """List all patients"""
     patients = Patient.objects.all()
@@ -27,6 +29,7 @@ def patient_list(request):
     return Response(data)
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def patient_detail(request, pk):
     """Get a specific patient by ID"""
     try:
