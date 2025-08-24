@@ -1,0 +1,21 @@
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# HTTP Client
+httpx==0.25.2
+
+# Environment Management
+python-dotenv==1.0.0
+
+# Data Validation
+pydantic==2.5.0
+
+# Optional: Production dependencies
+gunicorn==21.2.0
+
+# Optional: Redis support (for production session storage)
+redis==5.0.1
+
+# Optional: Prometheus monitoring
+prometheus-client==0.19.0
