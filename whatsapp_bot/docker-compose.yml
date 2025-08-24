@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  whatsapp-bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: whatsapp-mental-health-bot
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # WhatsApp Business API Configuration
+      - WHATSAPP_TOKEN=${WHATSAPP_TOKEN}
+      - PHONE_NUMBER_ID=${PHONE_NUMBER_ID}
+      - VERIFY_TOKEN=${VERIFY_TOKEN}
+      - GRAPH_API_VERSION=${GRAPH_API_VERSION:-v20.0}
+      
+      # External API Configuration
+      - EXTERNAL_API_URL=${EXTERNAL_API_URL:-https://api.example.com/process}
+      
+      # Database API Configuration
+      - DATABASE_API_URL=${DATABASE_API_URL:-http://18.190.66.49:8000/api/patients/intake/}
+      - DATABASE_API_TOKEN=${DATABASE_API_TOKEN}
+      
+      # Application Configuration
+      - PORT=8000
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    volumes:
+      # Mount logs directory (optional)
+      - ./logs:/app/logs:rw
+    networks:
+      - whatsapp-bot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/sessions"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.whatsapp-bot.description=WhatsApp Mental Health Triage Bot"
+      - "com.whatsapp-bot.version=1.0.0"
+
+  # Optional: Redis for session storage (production recommendation)
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - whatsapp-bot-network
+    profiles:
+      - production
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: whatsapp-bot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - whatsapp-bot
+    networks:
+      - whatsapp-bot-network
+    profiles:
+      - production
+
+networks:
+  whatsapp-bot-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

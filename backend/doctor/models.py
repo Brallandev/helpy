@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from datetime import date
 
 class Specialty(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -31,7 +32,6 @@ class Doctor(models.Model):
     ]
     
     # Basic Information
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     doctor_id = models.CharField(max_length=20, unique=True, help_text="Unique doctor identifier")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
@@ -57,7 +57,7 @@ class Doctor(models.Model):
     
     # Administrative
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
-    hire_date = models.DateField()
+    hire_date = models.DateField(default=date.today)
     department = models.CharField(max_length=100, blank=True)
     is_available = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
