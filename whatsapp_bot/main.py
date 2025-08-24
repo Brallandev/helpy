@@ -16,6 +16,7 @@ from app.utils.message_parser import MessageParser
 from app.services.whatsapp_service import WhatsAppService
 from app.services.api_service import ExternalAPIService
 from app.services.database_service import DatabaseService
+from app.services.doctor_service import DoctorService
 from app.services.conversation_service import ConversationService
 
 
@@ -27,11 +28,13 @@ session_manager = SessionManager()
 whatsapp_service = WhatsAppService()
 api_service = ExternalAPIService()
 database_service = DatabaseService()
+doctor_service = DoctorService()
 conversation_service = ConversationService(
     session_manager=session_manager,
     whatsapp_service=whatsapp_service,
     api_service=api_service,
-    database_service=database_service
+    database_service=database_service,
+    doctor_service=doctor_service
 )
 
 # Initialize FastAPI app
@@ -115,7 +118,11 @@ async def get_all_sessions():
             "followup_questions_count": len(session.followup_questions),
             "current_followup_index": session.current_followup_index,
             "followup_answers_count": len(session.followup_answers),
-            "has_pre_diagnosis": session.pre_diagnosis is not None
+            "has_pre_diagnosis": session.pre_diagnosis is not None,
+            "doctors_notified_count": len(session.doctors_notified),
+            "doctor_responses_count": len(session.doctor_responses),
+            "final_doctor_decision": session.final_doctor_decision,
+            "patient_notified_of_decision": session.patient_notified_of_decision
         }
         for phone, session in sessions.items()
     }
@@ -152,6 +159,7 @@ async def shutdown_event():
     await whatsapp_service.close()
     await api_service.close()
     await database_service.close()
+    await doctor_service.close()
 
 
 if __name__ == "__main__":

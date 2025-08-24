@@ -14,7 +14,9 @@ class ExternalAPIService:
     
     def __init__(self):
         self.http_client = httpx.AsyncClient(timeout=30.0)
-        self.api_url = settings.EXTERNAL_API_URL
+        self.base_url = settings.EXTERNAL_API_URL
+        self.questions_endpoint = f"{self.base_url}/questions"
+        self.answers_endpoint = f"{self.base_url}/answers"
     
     def _prepare_payload(self, session: UserSession, include_followup: bool = False) -> Dict[str, Any]:
         """Prepare the payload for the external API.
@@ -71,11 +73,11 @@ class ExternalAPIService:
         payload = self._prepare_payload(session, include_followup=False)
         
         # Enhanced logging for API call
-        self._log_api_request(payload, "INITIAL")
+        self._log_api_request(payload, "INITIAL", self.questions_endpoint)
         
         try:
             response = await self.http_client.post(
-                self.api_url,
+                self.questions_endpoint,
                 json=payload,
                 headers={"Content-Type": "application/json"}
             )
@@ -103,11 +105,11 @@ class ExternalAPIService:
         payload = self._prepare_payload(session, include_followup=True)
         
         # Enhanced logging for API call
-        self._log_api_request(payload, "FOLLOWUP")
+        self._log_api_request(payload, "FOLLOWUP", self.answers_endpoint)
         
         try:
             response = await self.http_client.post(
-                self.api_url,
+                self.answers_endpoint,
                 json=payload,
                 headers={"Content-Type": "application/json"}
             )
@@ -123,12 +125,15 @@ class ExternalAPIService:
                 "continue_conversation": False
             }
     
-    def _log_api_request(self, payload: Dict[str, Any], request_type: str = "INITIAL") -> None:
+    def _log_api_request(self, payload: Dict[str, Any], request_type: str = "INITIAL", endpoint: str = None) -> None:
         """Log the API request in a formatted way."""
+        if endpoint is None:
+            endpoint = self.base_url
+        
         print("\n" + "="*60)
         print(f"[API_CALL] SENDING {request_type} DATA TO EXTERNAL API")
         print("="*60)
-        print(f"🎯 Endpoint: {self.api_url}")
+        print(f"🎯 Endpoint: {endpoint}")
         print(f"📱 User: {payload.get('phone_number', 'Unknown')}")
         print(f"📊 Total Q&A Pairs: {len(payload.get('chat', []))}")
         print(f"🔄 Request Type: {request_type}")
@@ -162,7 +167,7 @@ class ExternalAPIService:
                 # Different success messages based on response type
                 if request_type == "INITIAL" and "questions" in response_json:
                     print("✅ Initial API call successful! Follow-up questions received.")
-                elif request_type == "FOLLOWUP" and "pre-diagnosis" in response_json:
+                elif request_type == "FOLLOWUP" and ("pre-diagnosis" in response_json or "pre_diagnosis" in response_json):
                     print("✅ Follow-up API call successful! Pre-diagnosis received.")
                 else:
                     print("✅ API call successful!")

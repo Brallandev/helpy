@@ -36,3 +36,9 @@ class UserSession:
     current_followup_index: int = 0  # Current follow-up question index
     followup_answers: List[Answer] = field(default_factory=list)  # Answers to follow-up questions
     pre_diagnosis: Optional[Dict[str, Any]] = None  # Final pre-diagnosis from API
+    
+    # Doctor approval workflow fields
+    doctors_notified: List[str] = field(default_factory=list)  # List of doctor phone numbers notified
+    doctor_responses: List[Dict[str, Any]] = field(default_factory=list)  # Doctor approval responses
+    final_doctor_decision: Optional[str] = None  # Final doctor decision (APROBAR/DENEGAR/MIXTO)
+    patient_notified_of_decision: bool = False  # Whether patient was notified of doctor decision

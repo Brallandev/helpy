@@ -132,7 +132,7 @@ VERIFY_TOKEN=your_webhook_verify_token_here
 GRAPH_API_VERSION=v20.0
 
 # External API Configuration
-EXTERNAL_API_URL=https://your-mental-health-api.com/process
+EXTERNAL_API_URL=https://31fa51d86155.ngrok-free.app
 
 # Database API Configuration
 DATABASE_API_URL=http://18.190.66.49:8000/api/patients/intake/
@@ -153,14 +153,20 @@ The bot employs a **sophisticated dual API approach** with **two separate API ca
 
 #### **First API Call** (After Initial Questions)
 1. **📊 Database Storage**: Stores initial intake data for record keeping
-2. **🧠 External Processing API**: Processes initial data and returns follow-up questions
+2. **🧠 External Processing API**: POST to `/questions` endpoint - processes initial data and returns follow-up questions
 
 #### **Second API Call** (After Follow-up Questions)
-1. **🧠 External Processing API**: Processes complete data and returns pre-diagnosis
+1. **🧠 External Processing API**: POST to `/answers` endpoint - processes complete data and returns pre-diagnosis
+
+### API Endpoints
+
+- **🧠 Multi-Agent API Base**: `https://31fa51d86155.ngrok-free.app`
+- **❓ Questions Endpoint**: `POST /questions` - Initial questionnaire processing
+- **💬 Answers Endpoint**: `POST /answers` - Complete data processing and pre-diagnosis
 
 ### Request Formats
 
-#### **Initial API Call Payload**
+#### **Initial API Call Payload** (to `/questions`)
 
 ```json
 {
@@ -222,7 +228,7 @@ The bot employs a **sophisticated dual API approach** with **two separate API ca
 }
 ```
 
-#### **Follow-up API Call Payload**
+#### **Follow-up API Call Payload** (to `/answers`)
 
 ```json
 {
