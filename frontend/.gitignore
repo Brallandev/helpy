@@ -32,3 +32,8 @@ next-env.d.ts
 
 # next
 .next
+
+# pnpm
+.pnpm-debug.log*
+/pnpm-lock.yaml
+.pnpm-store
