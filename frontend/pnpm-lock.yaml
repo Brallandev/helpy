@@ -125,6 +125,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      qrcode.js:
+        specifier: ^0.0.1
+        version: 0.0.1
       react:
         specifier: ^19
         version: 19.1.1
@@ -1531,6 +1534,9 @@ packages:
 
   prop-types@15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+
+  qrcode.js@0.0.1:
+    resolution: {integrity: sha512-EpHuKYzjYH/+SQtAlo4NYe3wpsYzKadKa154Ch163K+jrUlz6pVInWgJlsj5d1dxngYEjuqnClfzutL8Z9rqcg==}
 
   react-day-picker@9.8.0:
     resolution: {integrity: sha512-E0yhhg7R+pdgbl/2toTb0xBhsEAtmAx1l7qjIWYfcxOy8w4rTSVfbtBoSzVVhPwKP/5E9iL38LivzoE3AQDhCQ==}
@@ -3007,6 +3013,8 @@ snapshots:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       react-is: 16.13.1
+
+  qrcode.js@0.0.1: {}
 
   react-day-picker@9.8.0(react@19.1.1):
     dependencies:
