@@ -69,6 +69,12 @@ class DoctorDetailSerializer(serializers.ModelSerializer):
 
 
 class DoctorCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a new doctor.
+    
+    This serializer handles the creation of doctor records with validation
+    for unique constraints and proper data formatting.
+    """
     specialties = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Specialty.objects.filter(is_active=True),

@@ -21,6 +21,7 @@ class DoctorPagination(PageNumberPagination):
     methods=['GET'],
     summary="List doctors",
     description="Retrieve a paginated list of doctors with optional filtering and search capabilities.",
+    operation_id='doctors_list',
     parameters=[
         OpenApiParameter(
             name='search',
@@ -101,6 +102,7 @@ class DoctorPagination(PageNumberPagination):
     summary="Create a new doctor",
     description="Register a new doctor in the system with all required information.",
     request=DoctorCreateSerializer,
+    operation_id='doctors_create',
     responses={
         201: OpenApiExample(
             'Doctor created successfully',
@@ -231,6 +233,7 @@ def doctor_list_create(request):
 @extend_schema(
     summary="Get doctor details",
     description="Retrieve detailed information for a specific doctor including specialties, availability, and leave records.",
+    operation_id='doctors_retrieve',
     parameters=[
         OpenApiParameter(
             name='pk',
@@ -265,6 +268,7 @@ def doctor_detail(request, pk):
 @extend_schema(
     summary="Get doctor phone numbers",
     description="Retrieve a simple list of doctor phone numbers with optional filtering by status and availability.",
+    operation_id='doctors_phone_numbers',
     parameters=[
         OpenApiParameter(
             name='status',
