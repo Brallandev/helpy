@@ -1,5 +1,4 @@
-from http.client import HTTPException
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from src.api.schemas import BodyRequest
 from src.model.agents import MetaAgent, QuestionerAgent
 from src.utils.config_manager import get_config
@@ -15,7 +14,7 @@ async def get_questions(req: BodyRequest):
     cfg = get_config()
     doc = get_doc()
     if doc is None:
-        raise HTTPException(status_code=400, detail="No document found.")
+        raise HTTPException(status_code=404)
 
     # Initialize LLM with OpenRouter pointing to Gemini 2.5 Flash-Lite
     llm = ChatOpenAI(
@@ -34,7 +33,8 @@ async def get_questions(req: BodyRequest):
     create_session(req.phone_number, meta_agent)
 
     # SimpleAgent uses the same LLM
-    questioner = QuestionerAgent(meta_agent.questions_agent, llm)
+    prompt = meta_agent.questions_agent + f'\nThis is the user info: \n{req.chat}\n Use it to make better oriented questions in the specified JSON format'
+    questioner = QuestionerAgent(prompt, llm)
     questioner.run()
     questions = questioner.response
 

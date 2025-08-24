@@ -79,10 +79,10 @@ filled with the users diagnosis and results.
 At the end return the resultsin the same language they came following the JSON format:
 
 {{
-    "pre-diagnosis": "Final pre-diagnosis given the user's inputs and the analysis performed.",
-    "comments" : "Final model comments considering the most valuable insights from the analysis.",
-    "score" : "The score assigned to the user's case. that is the mode of sub-agents scores",
-    "filled_doc" : "Doc filled with the information provided by the user and the analysis performed."
+    "pre-diagnosis": "Final pre-diagnosis given the user's inputs and the analysis performed. This is a string",
+    "comments" : "Final model comments considering the most valuable insights from the analysis. This is a string",
+    "score" : "The score assigned to the user's case. that is the mode of sub-agents scores. This must be one of the scores defined at the beginning",
+    "filled_doc" : "Doc filled with the information provided by the user and the analysis performed. This must be a single string with all the information"
 }}
 
 Return only the JSON
