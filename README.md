@@ -1,35 +1,14 @@
-# Auto Triage 🏥🤖
-
-**Revolutionizing emergency response with AI.** A comprehensive AI-powered healthcare triage system that uses Large Language Models (LLMs) for intelligent, real-time assessment of emergency situations and healthcare needs. By automating initial assessments, it helps create a faster, smarter, and more resilient first-response infrastructure.
+# Helpy
 
 ## 🌟 Overview
 
-Auto Triage is a full-stack healthcare management platform that combines AI-powered triage with comprehensive appointment scheduling and patient management. The system includes:
+Helpy includes: 
 
-- **AI-Powered Triage Bot**: WhatsApp-based conversational agent for mental health assessment
+- **AI-Powered Mental Health Assesment**: WhatsApp-based conversational agent for mental health assessment
 - **Diagnosis Engine**: Multi-agent AI system for clinical decision support  
 - **Healthcare Management API**: Complete patient, doctor, and appointment management
 - **Modern Web Interface**: React/Next.js frontend for healthcare providers
 - **Real-time Communication**: WebSocket support for live interactions
-
-## 🏗️ System Architecture
-
-The system is built with a microservices architecture consisting of four main components:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend API   │    │  WhatsApp Bot   │
-│   (Next.js)     │◄──►│   (Django)      │◄──►│   (FastAPI)     │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Database      │    │  File Storage   │    │ Diagnose Bot    │
-│  (PostgreSQL)   │    │    (AWS S3)     │    │  (LangChain)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
 
 ### Core Components
 
