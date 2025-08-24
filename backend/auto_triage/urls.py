@@ -53,6 +53,7 @@ urlpatterns = [
     path('api/', include('appointment.urls')),
     path('api/', include('rooms.urls')),
     path('api/', include('schedule.urls')),
+    path('api/', include('conversation.urls')),
 ]
 
 # Add static and media files serving in development
