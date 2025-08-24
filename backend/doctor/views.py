@@ -73,3 +73,33 @@ def doctor_detail(request, pk):
     doctor = get_object_or_404(Doctor, pk=pk)
     serializer = DoctorDetailSerializer(doctor)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def doctor_phone_numbers(request):
+    """
+    GET: Return a simple list of doctor phone numbers
+    Query params:
+      - status: filter by status (default: ACTIVE only)
+      - is_available: filter by availability (default: true only)
+    """
+    queryset = Doctor.objects.exclude(phone_number='').exclude(phone_number__isnull=True)
+    
+    # Default to active doctors only
+    status_param = request.query_params.get('status', 'ACTIVE')
+    if status_param:
+        queryset = queryset.filter(status=status_param)
+    
+    # Default to available doctors only
+    is_available = request.query_params.get('is_available', 'true')
+    if is_available is not None:
+        queryset = queryset.filter(is_available=is_available.lower() == 'true')
+    
+    # Extract just the phone numbers
+    phone_numbers = list(queryset.values_list('phone_number', flat=True))
+    
+    return Response({
+        'phone_numbers': phone_numbers,
+        'count': len(phone_numbers)
+    })
