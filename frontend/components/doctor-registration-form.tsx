@@ -209,23 +209,16 @@ export default function DoctorRegistrationForm() {
   }
 
   const submitToApi = async (apiData: DoctorApiData) => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api'
-    const fullUrl = `${apiBaseUrl}/doctors/`
-    const authToken = process.env.NEXT_PUBLIC_API_TOKEN
+    // Use the secure Next.js API route instead of calling external API directly
+    const fullUrl = '/api/doctors'
     
-    if (!authToken) {
-      throw new Error('Token de autenticación no configurado. Por favor, configure NEXT_PUBLIC_API_TOKEN en las variables de entorno.')
-    }
-    
-    console.log('🚀 Submitting to API:', {
+    console.log('🚀 Submitting to secure API route:', {
       url: fullUrl,
       method: 'POST',
       data: apiData,
-      hasToken: !!authToken,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
       }
     })
     
@@ -235,10 +228,6 @@ export default function DoctorRegistrationForm() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-          // Alternative formats if needed:
-          // 'Authorization': `Bearer ${authToken}`,
-          // 'X-API-KEY': authToken,
         },
         body: JSON.stringify(apiData),
       })
@@ -254,7 +243,7 @@ export default function DoctorRegistrationForm() {
         
         try {
           const errorData = await response.json()
-          errorMessage = errorData.message || errorData.detail || errorMessage
+          errorMessage = errorData.message || errorData.error || errorData.detail || errorMessage
           
           // Handle validation errors
           if (errorData.errors && Array.isArray(errorData.errors)) {
