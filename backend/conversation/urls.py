@@ -1,14 +1,14 @@
 from django.urls import path
 from .views import (
-    ChatDataCreateView,
+    ChatDataUpsertView,
     ChatDataByNumberView
 )
 
 app_name = 'conversation'
 
 urlpatterns = [
-    # Create a new chat session
-    path('chat/create/', ChatDataCreateView.as_view(), name='chat-create'),
+    # Unified endpoint to create or update chat data
+    path('chat/data/', ChatDataUpsertView.as_view(), name='chat-upsert'),
     
     # Get all chat sessions with a specific number
     path('chat/number/<str:number>/', ChatDataByNumberView.as_view(), name='chat-by-number'),

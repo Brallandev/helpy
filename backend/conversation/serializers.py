@@ -3,20 +3,27 @@ from .models import ChatData
 
 
 class ChatDataSerializer(serializers.ModelSerializer):
-    """Serializer for ChatData model"""
+    """Serializer for ChatData model - full data representation"""
     
     class Meta:
         model = ChatData
-        fields = ['id', 'number', 'content', 'created_at', 'updated_at']
+        fields = [
+            'id', 'number', 'initial_questions', 'llm_questions', 
+            'pre_diagnosis', 'comments', 'score', 'filled_doc',
+            'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class ChatDataCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating ChatData (allows number to be optional for auto-generation)"""
+class ChatDataUpsertSerializer(serializers.ModelSerializer):
+    """Unified serializer for creating or updating ChatData"""
     
     class Meta:
         model = ChatData
-        fields = ['number', 'content']
+        fields = [
+            'number', 'initial_questions', 'llm_questions', 
+            'pre_diagnosis', 'comments', 'score', 'filled_doc'
+        ]
     
     def create(self, validated_data):
         """Create ChatData instance, auto-generating number if not provided"""
@@ -26,3 +33,10 @@ class ChatDataCreateSerializer(serializers.ModelSerializer):
             validated_data['number'] = str(uuid.uuid4())[:8].upper()
         
         return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Update ChatData instance with provided data"""
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance

@@ -8,7 +8,19 @@ class ChatData(models.Model):
     number = models.CharField(max_length=30, unique=False, help_text="Unique identifier for the chat session")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    content = models.TextField(blank=True, help_text="The content of the chat session")
+    initial_questions = models.TextField(blank=True, help_text="The content of the chat session")
+    llm_questions = models.TextField(blank=True, help_text="The content of the chat session")
+    
+    # Diagnostic fields
+    pre_diagnosis = models.TextField(blank=True, null=True, help_text="Pre-diagnostic analysis of the user's condition")
+    comments = models.TextField(blank=True, null=True, help_text="Comments from sub-agent analysis")
+    score = models.CharField(max_length=50, blank=True, null=True, help_text="Priority score (e.g., 'Alta prioridad', 'Media prioridad')")
+    filled_doc = models.TextField(blank=True, null=True, help_text="Complete diagnostic document with detailed analysis")
+    
+
+
+ 
+
     
     class Meta:
         ordering = ['-created_at']
