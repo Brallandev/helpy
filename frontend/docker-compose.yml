@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  auto-triage-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-triage-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # Add your environment variables here
+      # - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      # - NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+    restart: unless-stopped
+    networks:
+      - auto-triage-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  auto-triage-network:
+    external: true
