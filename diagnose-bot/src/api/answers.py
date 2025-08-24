@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException  
 from src.api.schemas import BodyRequest
 from src.model.agents import AgentsGroup, ConsolidatorAgent
 from src.utils.config_manager import get_config, get_doc
@@ -12,6 +12,9 @@ router = APIRouter()
 async def give_answers(req: BodyRequest):
     questions_answers = req.chat
     session = get_session(req.phone_number)
+    
+    if session is None:
+        raise HTTPException(status_code = 404)
 
     llm = ChatOpenAI
     # Pass the LLM instance to your AgentsGroup

@@ -11,9 +11,9 @@ The idea is that you will gather information from the user, analyze it, and then
 You will design the prompts related to each agent and its purpose, you will define the following output for all the agents and clarify it in their prompts:
 
 {{
-    "comments" : "Here the agent give its comment given the related task",
-    "score" : "Here the agent defines a possible score given the example provided",
-    "suggestions" : "Here the agent can provide additional suggestions or considerations that will be sent to the user"
+    "comments" : "Here the agent give its comment given the related task, this field is a string",
+    "score" : "Here the agent defines a possible score given the example provided, this field is a string",
+    "suggestions" : "Here the agent can provide additional suggestions or considerations that will be sent to the user, this is a list of strings"
 }}
 
 You must define an odd number of sub-agents between {min_agent} and {max_agent} to ensure a balanced approach to problem-solving.

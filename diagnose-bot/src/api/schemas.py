@@ -1,6 +1,9 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+
+## --- Schemas for APIs ------#
+
 class ChatEntry(BaseModel):
     question: Optional[str]
     answer: Optional[str]

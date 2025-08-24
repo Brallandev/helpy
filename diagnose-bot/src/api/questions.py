@@ -1,7 +1,7 @@
 from http.client import HTTPException
 from fastapi import APIRouter
 from src.api.schemas import BodyRequest
-from src.model.agents import MetaAgent, SimpleAgent
+from src.model.agents import MetaAgent, QuestionerAgent
 from src.utils.config_manager import get_config
 from src.utils.agent_registry import create_session
 from src.utils.config_manager import get_doc
@@ -23,7 +23,7 @@ async def get_questions(req: BodyRequest):
         openai_api_base="https://openrouter.ai/api/v1",
         api_key=OPENROUTER_API_KEY,
         temperature=0.7,
-        max_tokens=1024
+        max_tokens=4096
     )
 
     # Begin MetaAgent task
@@ -34,7 +34,7 @@ async def get_questions(req: BodyRequest):
     create_session(req.phone_number, meta_agent)
 
     # SimpleAgent uses the same LLM
-    questioner = SimpleAgent(meta_agent.questions_agent, llm)
+    questioner = QuestionerAgent(meta_agent.questions_agent, llm)
     questioner.run()
     questions = questioner.response
 
