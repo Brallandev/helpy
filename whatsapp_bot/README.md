@@ -165,12 +165,41 @@ Your API should respond with:
 
 ## 🚀 Running the Application
 
-### Development
+### 🐳 Docker (Recommended)
+
+#### Quick Start
+```bash
+# Copy environment template
+cp env.example .env
+# Edit .env with your WhatsApp credentials
+
+# Development
+docker-compose -f docker-compose.dev.yml up --build
+
+# Production
+docker-compose up -d --build
+```
+
+#### Full Production (with Redis & Nginx)
+```bash
+docker-compose --profile production up -d --build
+```
+
+📖 **See [DOCKER.md](DOCKER.md) for complete Docker deployment guide**
+
+### 🐍 Local Development
+
+#### Prerequisites
+```bash
+pip install -r requirements.txt
+```
+
+#### Development
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Production
+#### Production
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
