@@ -5,7 +5,7 @@ app_name = 'doctor'
 
 urlpatterns = [
     # Basic doctor endpoints
-    path('doctors/', views.doctor_list, name='doctor-list'),
+    path('doctors/', views.doctor_list_create, name='doctor-list-create'),
     path('doctors/<int:pk>/', views.doctor_detail, name='doctor-detail'),
     path('doctors/phone-numbers/', views.doctor_phone_numbers, name='doctor-phone-numbers'),
 ]
