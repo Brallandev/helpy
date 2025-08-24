@@ -21,7 +21,7 @@ class DoctorAdmin(admin.ModelAdmin):
     filter_horizontal = ['specialties']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('user', 'doctor_id', 'first_name', 'last_name', 'date_of_birth', 'gender')
+            'fields': ('doctor_id', 'first_name', 'last_name', 'date_of_birth', 'gender')
         }),
         ('Professional Information', {
             'fields': ('specialties', 'license_number', 'medical_school', 'graduation_year', 'board_certifications', 'years_of_experience')
@@ -30,7 +30,7 @@ class DoctorAdmin(admin.ModelAdmin):
             'fields': ('phone_number', 'email', 'office_address')
         }),
         ('Administrative', {
-            'fields': ('status', 'department', 'is_available')
+            'fields': ('hire_date','status', 'department', 'is_available')
         }),
     )
     
