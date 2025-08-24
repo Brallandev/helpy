@@ -70,17 +70,12 @@ class ConversationService:
             await self._handle_followup_flow(session, message_text)
             return
         
-        # Check if this is a doctor response first
-        doctor_response = await self.doctor_service.process_doctor_response(
-            phone_number, message_text, self.whatsapp_service
-        )
-        
-        if doctor_response:
-            # This is a doctor approval/denial response
-            await self._handle_doctor_decision(doctor_response)
+        if session.state == SessionState.WAITING_FOR_DOCTOR_APPROVAL:
+            await self._handle_waiting_for_doctor_approval(phone_number)
             return
         
         # Handle the main conversation flow (questions)
+        # Note: Doctor responses are now handled in main.py routing, not here
         await self._handle_conversation_flow(session, message_text)
     
     async def _handle_conversation_restart(self, phone_number: str, session: UserSession) -> None:
@@ -459,9 +454,38 @@ class ConversationService:
         )
         
         try:
-            notified_doctors = await self.doctor_service.notify_doctors_about_diagnosis(
-                session, api_response, self.whatsapp_service
-            )
+            # Import doctor services at runtime to avoid circular imports
+            from main import doctor_session_manager, doctor_conversation_service
+            
+            # Get active registered doctors instead of using API
+            active_doctors = doctor_session_manager.get_active_doctors()
+            notified_doctors = []
+            
+            if active_doctors:
+                print(f"📋 Found {len(active_doctors)} active registered doctors")
+                for doctor_session in active_doctors:
+                    try:
+                        # Notify doctor of new case assignment
+                        success = await doctor_conversation_service.notify_doctor_of_new_case(
+                            doctor_session.phone_number, session.phone_number
+                        )
+                        
+                        if success:
+                            # Send the diagnosis details directly
+                            await self._send_diagnosis_to_doctor(
+                                doctor_session.phone_number, session, api_response
+                            )
+                            notified_doctors.append(doctor_session.phone_number)
+                            print(f"✅ Notified registered doctor: {doctor_session.phone_number}")
+                        
+                    except Exception as e:
+                        print(f"❌ Failed to notify registered doctor {doctor_session.phone_number}: {repr(e)}")
+            else:
+                print("⚠️ No active registered doctors found, using API fallback...")
+                # Fallback to API-based doctor notification
+                notified_doctors = await self.doctor_service.notify_doctors_about_diagnosis(
+                    session, api_response, self.whatsapp_service
+                )
             
             session.doctors_notified = notified_doctors
             
@@ -484,57 +508,76 @@ class ConversationService:
                 "⚠️ Hubo un problema técnico. Tu diagnóstico se ha guardado y será revisado pronto."
             )
         
-        # Keep conversation in ended state but mark that doctors were notified
-        session.state = SessionState.CONVERSATION_ENDED
-        print("[CONVERSATION_COMPLETE] Pre-diagnosis delivered and doctors notified")
+        # Set state to wait for doctor approval instead of ending conversation
+        session.state = SessionState.WAITING_FOR_DOCTOR_APPROVAL
+        print("[CONVERSATION_COMPLETE] Pre-diagnosis delivered and doctors notified, waiting for approval")
     
-    async def _handle_doctor_decision(self, doctor_response: dict) -> None:
-        """Handle a doctor's approval/denial decision.
+    async def _handle_waiting_for_doctor_approval(self, phone_number: str) -> None:
+        """Handle messages from patients while waiting for doctor approval.
         
         Args:
-            doctor_response: Dictionary with doctor's decision details
+            phone_number: The patient's phone number
         """
-        doctor_phone = doctor_response.get("doctor_phone")
-        decision = doctor_response.get("decision")
-        patient_phone = doctor_response.get("patient_phone")
+        print(f"[WAITING_FOR_DOCTOR] Patient {phone_number} sent message while waiting for doctor approval")
         
-        print(f"[DOCTOR_DECISION] Processing decision '{decision}' from doctor {doctor_phone}")
+        waiting_message = (
+            "⏳ **Tu diagnóstico está siendo revisado**\n\n"
+            "Hemos enviado tu pre-diagnóstico a nuestros médicos especialistas "
+            "para su validación. Te notificaremos tan pronto como recibamos "
+            "la respuesta médica.\n\n"
+            "🏥 **No es necesario que envíes más mensajes por ahora.** "
+            "Recibirás una notificación automática cuando el médico "
+            "haya completado la revisión.\n\n"
+            "⏰ **Tiempo estimado de respuesta: 1-2 horas**"
+        )
         
-        # If we have patient phone from the button, use it; otherwise try to find the session
-        if patient_phone:
-            # Direct patient phone from button
-            await self.doctor_service.notify_patient_of_decision(
-                patient_phone, decision, doctor_phone, self.whatsapp_service
+        await self.whatsapp_service.send_text_message(phone_number, waiting_message)
+    
+    async def _send_diagnosis_to_doctor(self, doctor_phone: str, session: UserSession, api_response: Dict[str, Any]) -> None:
+        """Send diagnosis details to a specific registered doctor.
+        
+        Args:
+            doctor_phone: Doctor's phone number
+            session: Patient session
+            api_response: API response with diagnosis
+        """
+        pre_diagnosis_text = api_response.get("pre-diagnosis", "") or api_response.get("pre_diagnosis", "")
+        comments_text = api_response.get("comments", "")
+        score_text = api_response.get("score", "")
+        
+        # Format diagnosis for doctor
+        diagnosis_message = (
+            f"🏥 **DETALLES DEL PRE-DIAGNÓSTICO**\n\n"
+            f"👤 **Paciente**: {session.phone_number}\n"
+            f"📊 **Prioridad**: {score_text}\n"
+            f"📅 **Fecha**: {session.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
+        )
+        
+        if pre_diagnosis_text:
+            diagnosis_message += f"🔍 **Pre-Diagnóstico**:\n{pre_diagnosis_text}\n\n"
+        
+        if comments_text:
+            diagnosis_message += f"💬 **Comentarios**:\n{comments_text}\n\n"
+        
+        diagnosis_message += "Por favor, valida este diagnóstico respondiendo:\n**APROBAR** / **DENEGAR** / **MIXTO**"
+        
+        # Send diagnosis details
+        await self.whatsapp_service.send_text_message(doctor_phone, diagnosis_message)
+        
+        # Send interactive buttons
+        buttons = [
+            {"id": f"approve_{session.phone_number}", "title": "APROBAR"},
+            {"id": f"deny_{session.phone_number}", "title": "DENEGAR"}, 
+            {"id": f"mixed_{session.phone_number}", "title": "MIXTO"}
+        ]
+        
+        try:
+            await self.whatsapp_service.send_interactive_message(
+                doctor_phone,
+                "Selecciona tu decisión médica:",
+                "Validación",
+                buttons
             )
-            
-            # Update session if it exists
-            if patient_phone in self.session_manager.user_sessions:
-                session = self.session_manager.user_sessions[patient_phone]
-                session.doctor_responses.append(doctor_response)
-                session.final_doctor_decision = decision
-                session.patient_notified_of_decision = True
-                
-        else:
-            # Need to find which patient this doctor decision is for
-            # Look through recent sessions for ones with this doctor notified
-            for phone, session in self.session_manager.user_sessions.items():
-                if (doctor_phone in session.doctors_notified and 
-                    not session.patient_notified_of_decision and
-                    session.pre_diagnosis is not None):
-                    
-                    # Found the patient session
-                    await self.doctor_service.notify_patient_of_decision(
-                        phone, decision, doctor_phone, self.whatsapp_service
-                    )
-                    
-                    # Update session
-                    session.doctor_responses.append(doctor_response)
-                    session.final_doctor_decision = decision
-                    session.patient_notified_of_decision = True
-                    
-                    print(f"[PATIENT_NOTIFIED] Patient {phone} notified of decision: {decision}")
-                    break
-            else:
-                print(f"[WARNING] Could not find patient session for doctor decision from {doctor_phone}")
-        
-        print(f"[DOCTOR_DECISION_COMPLETE] Decision '{decision}' processed successfully")
+        except Exception as e:
+            print(f"[ERROR] Failed to send interactive buttons to {doctor_phone}: {repr(e)}")
+            # Buttons were already mentioned in the text message as fallback

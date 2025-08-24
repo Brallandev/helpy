@@ -94,8 +94,11 @@ class WhatsAppService:
             
             if response.status_code != 200:
                 print(f"[ERROR] Interactive message failed: {response.text}")
-                # Fallback: send as regular text message with instructions
-                fallback_message = f"{body_text}\n\n{button_text}\n\nPor favor responde 'Sí, acepto' o 'No, gracias'"
+                # Fallback: send as regular text message with button options
+                fallback_message = f"{body_text}\n\n{button_text}\n\nOpciones disponibles:\n"
+                for i, button in enumerate(buttons, 1):
+                    fallback_message += f"{i}. {button.get('title', button.get('id', 'Option'))}\n"
+                fallback_message += "\nPor favor responde con el número o el texto de tu opción."
                 return await self.send_text_message(to, fallback_message)
             
             response.raise_for_status()
@@ -103,8 +106,11 @@ class WhatsAppService:
             
         except Exception as e:
             print(f"[ERROR] Interactive message exception: {str(e)}")
-            # Fallback: send as regular text message
-            fallback_message = f"{body_text}\n\n{button_text}\n\nPor favor responde 'Sí, acepto' o 'No, gracias'"
+            # Fallback: send as regular text message with button options
+            fallback_message = f"{body_text}\n\n{button_text}\n\nOpciones disponibles:\n"
+            for i, button in enumerate(buttons, 1):
+                fallback_message += f"{i}. {button.get('title', button.get('id', 'Option'))}\n"
+            fallback_message += "\nPor favor responde con el número o el texto de tu opción."
             return await self.send_text_message(to, fallback_message)
     
     async def close(self):

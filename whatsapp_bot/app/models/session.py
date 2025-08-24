@@ -14,6 +14,7 @@ class SessionState(Enum):
     WAITING_FOR_ANSWER = "waiting_for_answer"
     PROCESSING_API = "processing_api"
     WAITING_FOR_FOLLOWUP = "waiting_for_followup"  # New state for follow-up questions
+    WAITING_FOR_DOCTOR_APPROVAL = "waiting_for_doctor_approval"  # Waiting for doctor decision
     CONVERSATION_ENDED = "conversation_ended"
     CONSENT_DECLINED = "consent_declined"
 

@@ -2,5 +2,6 @@
 
 from .session import UserSession, SessionState
 from .question import Question, Answer
+from .doctor_session import DoctorSession, DoctorSessionState
 
-__all__ = ["UserSession", "SessionState", "Question", "Answer"]
+__all__ = ["UserSession", "SessionState", "Question", "Answer", "DoctorSession", "DoctorSessionState"]

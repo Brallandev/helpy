@@ -204,11 +204,14 @@ class DoctorService:
         Returns:
             Dictionary with processing results or None if not a doctor response
         """
+        # Note: We'll let the calling service (doctor_conversation_service) 
+        # validate if this is a registered doctor since it has access to doctor_session_manager
+        
         # Extract patient phone number from button ID or response
         patient_phone = None
         decision = None
         
-        # Check if it's a button response
+        # Check if it's a button response (most reliable)
         if "approve_" in response_text:
             patient_phone = response_text.replace("approve_", "")
             decision = "APROBAR"
@@ -219,16 +222,33 @@ class DoctorService:
             patient_phone = response_text.replace("mixed_", "")
             decision = "MIXTO"
         
-        # Check for text responses
-        elif any(word in response_text.lower() for word in ["aprobar", "aprobado", "approve"]):
+        # Check for numbered responses (fallback options)
+        elif response_text.strip() in ["1", "1.", "APROBAR"]:
             decision = "APROBAR"
-        elif any(word in response_text.lower() for word in ["denegar", "denegado", "deny", "denied"]):
+        elif response_text.strip() in ["2", "2.", "DENEGAR"]:
+            decision = "DENEGAR" 
+        elif response_text.strip() in ["3", "3.", "MIXTO"]:
+            decision = "MIXTO"
+        
+        # Check for text responses (less reliable, more specific)
+        elif any(word in response_text.lower() for word in ["aprobar", "aprobado", "approve"]) and len(response_text.split()) <= 3:
+            decision = "APROBAR"
+        elif any(word in response_text.lower() for word in ["denegar", "denegado", "deny", "denied"]) and len(response_text.split()) <= 3:
             decision = "DENEGAR"
-        elif any(word in response_text.lower() for word in ["mixto", "mixed"]):
+        elif any(word in response_text.lower() for word in ["mixto", "mixed"]) and len(response_text.split()) <= 3:
             decision = "MIXTO"
         
         if not decision:
-            return None  # Not a doctor approval response
+            # Send help message to doctor if response unclear
+            help_message = (
+                "Para validar el diagnóstico, por favor responde:\n"
+                "1. APROBAR\n"
+                "2. DENEGAR\n"
+                "3. MIXTO\n\n"
+                "O usa el número correspondiente (1, 2, 3)."
+            )
+            await whatsapp_service.send_text_message(doctor_phone, help_message)
+            return None  # Not a valid doctor response
         
         print(f"\n[DOCTOR_RESPONSE] Doctor {doctor_phone} responded: {decision}")
         

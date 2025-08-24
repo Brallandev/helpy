@@ -12,12 +12,14 @@ from fastapi.responses import PlainTextResponse
 
 from app.config.settings import settings
 from app.utils.session_manager import SessionManager
+from app.utils.doctor_session_manager import DoctorSessionManager
 from app.utils.message_parser import MessageParser
 from app.services.whatsapp_service import WhatsAppService
 from app.services.api_service import ExternalAPIService
 from app.services.database_service import DatabaseService
 from app.services.doctor_service import DoctorService
 from app.services.conversation_service import ConversationService
+from app.services.doctor_conversation_service import DoctorConversationService
 
 
 # Validate configuration
@@ -25,6 +27,7 @@ settings.validate()
 
 # Initialize services
 session_manager = SessionManager()
+doctor_session_manager = DoctorSessionManager()
 whatsapp_service = WhatsAppService()
 api_service = ExternalAPIService()
 database_service = DatabaseService()
@@ -36,6 +39,12 @@ conversation_service = ConversationService(
     database_service=database_service,
     doctor_service=doctor_service
 )
+doctor_conversation_service = DoctorConversationService(
+    doctor_session_manager=doctor_session_manager,
+    whatsapp_service=whatsapp_service,
+    doctor_service=doctor_service,
+    patient_session_manager=session_manager
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -43,6 +52,37 @@ app = FastAPI(
     description="A conversational bot for mental health triage via WhatsApp",
     version="1.0.0"
 )
+
+
+async def route_message(sender_phone: str, text_content: str) -> None:
+    """Route incoming messages to the appropriate service (doctor or patient).
+    
+    Args:
+        sender_phone: Phone number of the sender
+        text_content: The message content
+    """
+    # Check if this is a doctor registration attempt
+    if text_content.lower().strip() == "doctor":
+        print(f"[DOCTOR_REGISTRATION] Processing doctor registration for {sender_phone}")
+        await doctor_conversation_service.process_doctor_message(sender_phone, text_content)
+        return
+    
+    # Check if sender is already a registered doctor
+    if doctor_session_manager.is_registered_doctor(sender_phone):
+        print(f"[DOCTOR_MESSAGE] Processing message from registered doctor {sender_phone}")
+        await doctor_conversation_service.process_doctor_message(sender_phone, text_content)
+        return
+    
+    # Check if sender has a pending doctor registration
+    doctor_session = doctor_session_manager.get_doctor_session(sender_phone)
+    if doctor_session:
+        print(f"[DOCTOR_PENDING] Processing message from pending doctor {sender_phone}")
+        await doctor_conversation_service.process_doctor_message(sender_phone, text_content)
+        return
+    
+    # Default to patient flow
+    print(f"[PATIENT_MESSAGE] Processing message from patient {sender_phone}")
+    await conversation_service.process_user_message(sender_phone, text_content)
 
 
 @app.get("/")
@@ -83,7 +123,9 @@ async def receive_webhook(request: Request):
                     
                     if text_content:  # Only process if we have text
                         print(f"[MESSAGE] from={sender_phone} text={text_content!r}")
-                        await conversation_service.process_user_message(sender_phone, text_content)
+                        
+                        # Route message to appropriate service
+                        await route_message(sender_phone, text_content)
         
         return PlainTextResponse("OK", status_code=200)
     
@@ -135,6 +177,49 @@ async def get_session_details(phone_number: str):
     if session_summary:
         return session_summary
     return {"status": f"No session found for {phone_number}"}
+
+
+@app.get("/doctors")
+async def get_all_doctors():
+    """Get all registered doctors and their status."""
+    doctors = {}
+    for phone, session in doctor_session_manager.doctor_sessions.items():
+        doctors[phone] = {
+            "state": session.state.value,
+            "registration_date": session.registration_date.isoformat(),
+            "last_activity": session.last_activity.isoformat(),
+            "cases_reviewed_count": len(session.cases_reviewed),
+            "current_reviewing": session.current_reviewing_patient,
+            "is_active": session.is_active()
+        }
+    return doctors
+
+
+@app.get("/doctors/{phone_number}")
+async def get_doctor_details(phone_number: str):
+    """Get detailed information about a specific doctor."""
+    stats = doctor_session_manager.get_doctor_stats(phone_number)
+    if stats:
+        return stats
+    return {"status": f"No doctor found for {phone_number}"}
+
+
+@app.get("/doctors/active")
+async def get_active_doctors():
+    """Get all active doctors."""
+    active_doctors = doctor_session_manager.get_active_doctors()
+    return {
+        "count": len(active_doctors),
+        "doctors": [
+            {
+                "phone_number": doctor.phone_number,
+                "state": doctor.state.value,
+                "cases_reviewed": len(doctor.cases_reviewed),
+                "current_reviewing": doctor.current_reviewing_patient
+            }
+            for doctor in active_doctors
+        ]
+    }
 
 
 @app.delete("/sessions/{phone_number}")
