@@ -15,6 +15,7 @@ from app.utils.session_manager import SessionManager
 from app.utils.message_parser import MessageParser
 from app.services.whatsapp_service import WhatsAppService
 from app.services.api_service import ExternalAPIService
+from app.services.database_service import DatabaseService
 from app.services.conversation_service import ConversationService
 
 
@@ -25,10 +26,12 @@ settings.validate()
 session_manager = SessionManager()
 whatsapp_service = WhatsAppService()
 api_service = ExternalAPIService()
+database_service = DatabaseService()
 conversation_service = ConversationService(
     session_manager=session_manager,
     whatsapp_service=whatsapp_service,
-    api_service=api_service
+    api_service=api_service,
+    database_service=database_service
 )
 
 # Initialize FastAPI app
@@ -144,6 +147,7 @@ async def shutdown_event():
     """Clean up resources on shutdown."""
     await whatsapp_service.close()
     await api_service.close()
+    await database_service.close()
 
 
 if __name__ == "__main__":

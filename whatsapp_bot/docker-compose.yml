@@ -19,6 +19,10 @@ services:
       # External API Configuration
       - EXTERNAL_API_URL=${EXTERNAL_API_URL:-https://api.example.com/process}
       
+      # Database API Configuration
+      - DATABASE_API_URL=${DATABASE_API_URL:-http://18.190.66.49:8000/api/patients/intake/}
+      - DATABASE_API_TOKEN=${DATABASE_API_TOKEN}
+      
       # Application Configuration
       - PORT=8000
       - PYTHONPATH=/app

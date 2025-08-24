@@ -19,6 +19,10 @@ class Settings:
     # External API Configuration
     EXTERNAL_API_URL: str = os.getenv("EXTERNAL_API_URL", "https://api.example.com/process")
     
+    # Database API Configuration
+    DATABASE_API_URL: str = os.getenv("DATABASE_API_URL", "http://18.190.66.49:8000/api/patients/intake/")
+    DATABASE_API_TOKEN: str = os.getenv("DATABASE_API_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1OTk4ODU3LCJpYXQiOjE3NTU5OTUyNTcsImp0aSI6ImY4ODg0Yjc5ZmEyMjRiZmFhNzE4YTU5N2JkN2U2NDE0IiwidXNlcl9pZCI6IjMifQ.wHRimBdpxeriYqI7tKVYN7ruzKEUhRn-sKBiaMUCKWA")
+    
     # API URLs
     @property
     def GRAPH_URL(self) -> str:

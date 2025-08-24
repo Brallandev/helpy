@@ -108,6 +108,10 @@ GRAPH_API_VERSION=v20.0
 
 # External API Configuration
 EXTERNAL_API_URL=https://your-mental-health-api.com/process
+
+# Database API Configuration
+DATABASE_API_URL=http://18.190.66.49:8000/api/patients/intake/
+DATABASE_API_TOKEN=your_database_bearer_token_here
 ```
 
 ### Dependencies
@@ -118,31 +122,45 @@ pip install -r requirements.txt
 
 ## 🔄 API Integration
 
+### Dual Endpoint Architecture
+
+When all questions are answered, the bot sends data to **two endpoints**:
+
+1. **📊 Database Storage** (Priority): Stores intake data for record keeping
+2. **🧠 External Processing API**: Processes data and generates responses
+
 ### Request Format
 
-When all questions are answered, the bot sends this payload to your external API:
+Both endpoints receive the same payload structure:
 
 ```json
 {
-  "user_phone": "+573213754760",
+  "user_phone": "+573213754760", 
   "timestamp": "2025-08-23T16:30:15.123456",
-  "chat": {
+  "answers": {
     "name": "Patient Name",
-    "age": "25",
-    "main_concern": "Anxiety about work",
-    "anxiety": "Yes, frequently",
-    "symptom_duration": "2 months",
-    "relaxation_difficulty": "Yes, a lot",
-    "sadness": "Sometimes",
-    "loss_of_interest": "Yes, in some activities",
+    "age": "25", 
+    "main_concern": "Ansiedad por trabajo",
+    "anxiety": "Sí, frecuentemente",
+    "symptom_duration": "2 meses",
+    "relaxation_difficulty": "Sí, mucho",
+    "sadness": "A veces", 
+    "loss_of_interest": "Sí, en algunas actividades",
     "hallucinations_meds": "No",
     "self_harm_thoughts": "No",
-    "fatigue": "Yes, constantly",
-    "desired_outcome": "Feel better",
-    "specialist_connection": "Yes, please"
+    "fatigue": "Sí, constantemente",
+    "desired_outcome": "Sentirme mejor",
+    "specialist_connection": "Sí, por favor"
   }
 }
 ```
+
+### Database Endpoint
+
+- **URL**: `http://18.190.66.49:8000/api/patients/intake/`
+- **Method**: `POST`
+- **Auth**: `Bearer eyJhbGciOiJIUzI1NiIs...`
+- **Purpose**: Store patient intake data for records
 
 ### Response Format
 

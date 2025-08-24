@@ -15,6 +15,7 @@ from app.config.messages import (
 from app.utils.session_manager import SessionManager
 from app.services.whatsapp_service import WhatsAppService
 from app.services.api_service import ExternalAPIService
+from app.services.database_service import DatabaseService
 
 
 class ConversationService:
@@ -24,11 +25,13 @@ class ConversationService:
         self,
         session_manager: SessionManager,
         whatsapp_service: WhatsAppService,
-        api_service: ExternalAPIService
+        api_service: ExternalAPIService,
+        database_service: DatabaseService
     ):
         self.session_manager = session_manager
         self.whatsapp_service = whatsapp_service
         self.api_service = api_service
+        self.database_service = database_service
     
     async def process_user_message(self, phone_number: str, message_text: str) -> None:
         """Process a user message and handle the conversation flow.
@@ -225,7 +228,7 @@ class ConversationService:
     
     async def _handle_all_questions_answered(self, session: UserSession) -> None:
         """Handle the case when all questions have been answered."""
-        print("[ALL_QUESTIONS_ANSWERED] Processing with API")
+        print("[ALL_QUESTIONS_ANSWERED] Processing with API and Database")
         session.state = SessionState.PROCESSING_API
         
         await self.whatsapp_service.send_text_message(
@@ -233,9 +236,24 @@ class ConversationService:
             "Perfecto! He recopilado toda la información. Déjame procesarla..."
         )
         
-        # Send to external API
+        # Store data in database first (most important)
+        print("[STORING_IN_DATABASE] Saving intake data...")
+        database_response = await self.database_service.store_intake_data(session)
+        
+        if database_response.get("success", False):
+            print("[DATABASE_SUCCESS] Intake data stored successfully")
+        else:
+            print(f"[DATABASE_ERROR] Failed to store data: {database_response.get('error', 'Unknown error')}")
+        
+        # Send to external API for processing
+        print("[PROCESSING_WITH_API] Sending to external API...")
         api_response = await self.api_service.send_data(session)
         response_message = await self._handle_api_response(session, api_response)
+        
+        # Add database status to response if there was an error
+        if not database_response.get("success", False):
+            response_message = f"{response_message}\n\n⚠️ Nota: Hubo un problema guardando los datos, pero tu información ha sido procesada."
+        
         await self.whatsapp_service.send_text_message(session.phone_number, response_message)
         
         # Continue conversation if API indicates to do so
