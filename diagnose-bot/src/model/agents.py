@@ -4,6 +4,7 @@ from langchain.output_parsers import PydanticOutputParser
 from typing import List
 from src.model.schemas import MetaAgentOutputSchema, QuestionerSchema, AgentResponseSchema, ConsolidatorOutputSchema, CriticalAgentSchema
 from src.model.prompts import META_AGENT_PROMPT, CONSOLIDATOR_PROMPT
+from src.utils.config_manager import get_config
 
 
 meta_parser = PydanticOutputParser(pydantic_object=MetaAgentOutputSchema)
@@ -106,6 +107,7 @@ class ConsolidatorAgent:
         self.output: ConsolidatorOutputSchema = None
 
     def run(self, doc: str) -> ConsolidatorOutputSchema:
-        prompt_text = consolidator_prompt_template.format(agent_outputs=self.responses, doc=doc)
+        scores = get_config()['decision_scores']
+        prompt_text = consolidator_prompt_template.format(agent_outputs=self.responses, doc=doc, scores=scores)
         raw_response = self.llm.invoke([HumanMessage(content=prompt_text)])
         self.response = consolidator_parser.parse(raw_response.content)

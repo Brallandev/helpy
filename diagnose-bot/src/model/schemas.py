@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Union
 
 ## --- Schemas for Multi-Agent model -----#
 
@@ -16,8 +16,8 @@ class MetaAgentOutputSchema(BaseModel):
 
 class AgentResponseSchema(BaseModel):
     comments: str = Field(..., description="Here the agent gives its comment given the related task")
-    score: str = Field(..., description="Here the agent defines a possible score given the example provided")
-    suggestions: list[str] = Field(..., description="Here the agent can provide additional suggestions or considerations that will be sent to the user")
+    score: Union[str, int] = Field(..., description="Here the agent defines a possible score given the example provided (can be string or number)")
+    suggestions: Union[List[str], str] = Field(..., description="Here the agent can provide additional suggestions or considerations that will be sent to the user")
 
 class ConsolidatorOutputSchema(BaseModel):
     pre_diagnosis: str = Field(..., description="Final pre-diagnosis from consolidator")
