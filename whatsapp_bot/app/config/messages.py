@@ -56,7 +56,7 @@ Un especialista ha revisado y **APROBADO** tu apoyo diagnóstico.
 
     "DENEGAR": """⚠️ **APOYO DIAGNÓSTICO REQUIERE REVISIÓN**
 
-Un especialista ha pensado que este diagnóstico tiene opciones de mejorar en su estado actual, por lo cual, te aconsejamos que no lo sigas al pie de la letra y consultes a un especialista antes de seguir.""",
+Un especialista ha pensado que este diagnóstico tiene opciones de mejorar en su estado actual, por lo cual, te aconsejamos esperar la validacion de mas especialistas.""",
 
     "MIXTO": """🔄 **APOYO DIAGNÓSTICO EN EVALUACIÓN**
 

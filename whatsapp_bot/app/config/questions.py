@@ -4,13 +4,13 @@ from app.models.question import Question
 
 # Mental Health Triage Questions
 MENTAL_HEALTH_QUESTIONS = [
-    Question("name", "¡Hola! para nosotros eres muy importante, por lo tanto, nos gustaria saber un poco mas de ti Para comenzar, ¿cuál es tu nombre completo?"),
-    Question("age", "¿Cuál es tu edad?"),
-    Question("main_concern", "¿Cuál es el motivo principal de tu preocupación?"),
-    Question("anxiety", "¿Te sientes nervioso, tenso o ansioso con frecuencia?"),
-    Question("sadness", "¿Te sientes triste o deprimido y me puedes comentar un poco mas del contexto del porque?"),
-    Question("loss_of_interest", "¿Has perdido interés en actividades que antes disfrutabas? ¿Que actividades eran las que te interesaban antes y que sientes ahora cuando las haces?"),
-    Question("hallucinations_meds", "¿Tienes alucinaciones o estás en medicamentos psiquiátricos?"),
-    Question("self_harm_thoughts", "¿Has tenido pensamientos sobre hacerte daño o acabar con tu vida?"),
-    Question("desired_outcome", "¿Qué te gustaría que pasara ahora mismo?")
+    Question("name", "¡Hola! 😊 Queremos acompañarte de la mejor manera posible, por eso nos gustaría conocerte un poquito más. Para comenzar, ¿podrías compartirnos tu nombre completo?"),
+    Question("age", "Gracias por compartirlo. Para poder entender mejor tu situación, ¿nos podrías indicar tu edad?"),
+    Question("main_concern", "Queremos escucharte con atención. ¿Qué es lo que más te preocupa en este momento?"),
+    Question("anxiety", "En ocasiones todos sentimos nervios o tensión. ¿Sueles sentirte nervioso/a, tenso/a o ansioso/a con frecuencia?"),
+    Question("sadness", " ¿Has estado sintiéndote triste o desanimado/a? Si te sientes con confianza, ¿podrías contarnos un poco más sobre lo que lo ha ocasionado?"),
+    Question("loss_of_interest", "A veces dejamos de disfrutar cosas que antes nos hacían bien. ¿Te ha pasado que ya no disfrutas actividades que antes te gustaban? ¿Qué actividades eran y qué sientes ahora cuando las intentas hacer?"),
+    Question("hallucinations_meds", "Para poder apoyarte mejor, ¿actualmente estás en algún tratamiento médico o psiquiátrico, o has tenido experiencias como alucinaciones?"),
+    Question("self_harm_thoughts", "Esta es una pregunta muy importante: ¿Has tenido pensamientos de hacerte daño o de no querer seguir viviendo? (Si es así, recuerda que no estás solo/a, y podemos buscar ayuda juntos)."),
+    Question("desired_outcome", "Gracias por compartir todo esto. Para finalizar, ¿cómo te gustaría sentirte en este momento? ¿Qué sería un pequeño paso hacia sentirte mejor?")
 ]

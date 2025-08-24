@@ -405,7 +405,7 @@ class ConversationService:
         
         await self.whatsapp_service.send_text_message(
             session.phone_number,
-            "Excelente! He completado todas las preguntas. Ahora analizaré toda la información para darte un diagnóstico preliminar..."
+            "Excelente! He completado todas las preguntas. Ahora analizaré toda la información para darte un apoyo pre diagnostico, recuerda, esto es solo una aproximacion, y no representa un diagnostico real. "
         )
         
         # Send complete data (initial + follow-up) to API for final diagnosis
