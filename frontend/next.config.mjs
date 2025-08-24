@@ -1,3 +1,5 @@
+import path from 'path';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -31,6 +33,12 @@ const nextConfig = {
     
     // Common configuration for all platforms
     config.resolve.enforceExtension = false;
+    
+    // Ensure path aliases work correctly on all platforms
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, '.'),
+    };
     
     return config;
   },
