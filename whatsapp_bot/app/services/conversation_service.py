@@ -629,7 +629,7 @@ class ConversationService:
             "🏥 **No es necesario que envíes más mensajes por ahora.** "
             "Recibirás una notificación automática cuando el especialista "
             "haya completado la revisión.\n\n"
-            "⏰ **Tiempo estimado de respuesta: 1-2 horas**"
+            "⏰ **Tiempo estimado de respuesta: 5 a 10 minutos**"
         )
         
         await self.whatsapp_service.send_text_message(phone_number, waiting_message)
