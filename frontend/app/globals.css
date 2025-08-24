@@ -126,6 +126,29 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Custom placeholder styling - harder white */
+  ::placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  ::-webkit-input-placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  ::-moz-placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+    opacity: 1;
+  }
+  
+  :-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  /* Custom dropdown placeholder styling */
+  [data-placeholder] {
+    color: rgba(255, 255, 255, 0.3) !important;
+  }
 }
 
 /* Added custom animations for floating card */
