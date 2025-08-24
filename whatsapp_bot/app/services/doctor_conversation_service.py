@@ -8,6 +8,7 @@ from app.utils.doctor_session_manager import DoctorSessionManager
 from app.services.whatsapp_service import WhatsAppService
 from app.services.doctor_service import DoctorService
 from app.utils.session_manager import SessionManager
+from app.config.messages import SPECIALIST_APPROVAL_MESSAGES
 
 
 class DoctorConversationService:
@@ -64,13 +65,13 @@ class DoctorConversationService:
         session = self.doctor_session_manager.register_doctor(phone_number)
         
         registration_message = (
-            "👨‍⚕️ **REGISTRO DE MÉDICO INICIADO**\n\n"
-            "Bienvenido al sistema de validación médica.\n\n"
-            "Para completar tu registro como médico validador, "
+            "👨‍⚕️ **REGISTRO DE ESPECIALISTA INICIADO**\n\n"
+            "Bienvenido al sistema de validación de especialistas.\n\n"
+            "Para completar tu registro como especialista validador, "
             "por favor confirma tu identidad respondiendo:\n\n"
             "**'CONFIRMAR'** - Para activar tu cuenta\n"
             "**'CANCELAR'** - Para cancelar el registro\n\n"
-            "Una vez confirmado, recibirás casos para validación médica."
+            "Una vez confirmado, recibirás casos para validación de apoyo diagnóstico."
         )
         
         await self.whatsapp_service.send_text_message(phone_number, registration_message)
@@ -84,11 +85,11 @@ class DoctorConversationService:
             self.doctor_session_manager.confirm_doctor_registration(session.phone_number)
             
             success_message = (
-                "✅ **REGISTRO MÉDICO COMPLETADO**\n\n"
+                "✅ **REGISTRO DE ESPECIALISTA COMPLETADO**\n\n"
                 "Tu cuenta ha sido activada exitosamente.\n\n"
                 "🏥 **Funciones disponibles:**\n"
                 "• Recibirás notificaciones de nuevos casos\n"
-                "• Podrás validar pre-diagnósticos\n"
+                "• Podrás validar apoyos diagnósticos\n"
                 "• Responde APROBAR/DENEGAR/MIXTO para cada caso\n\n"
                 "**Comandos útiles:**\n"
                 "• 'ESTADO' - Ver tu estado actual\n"
@@ -170,7 +171,7 @@ class DoctorConversationService:
             # Invalid response, provide guidance
             guidance_message = (
                 "⚠️ **Respuesta no válida para el caso en revisión**\n\n"
-                "Para validar el pre-diagnóstico, responde:\n"
+                "Para validar el apoyo diagnóstico, responde:\n"
                 "• **APROBAR** (o número 1)\n"
                 "• **DENEGAR** (o número 2)\n"
                 "• **MIXTO** (o número 3)\n\n"
@@ -300,31 +301,15 @@ class DoctorConversationService:
             print(f"[ERROR] Cannot notify patient - no patient phone in doctor response")
             return
         
-        # Mask doctor phone for privacy
-        masked_doctor_phone = f"{doctor_phone[:5]}***{doctor_phone[-4:]}" if len(doctor_phone) > 8 else "Dr. ***"
-        
-        if decision == "APROBAR":
-            patient_message = (
-                f"✅ **DIAGNÓSTICO APROBADO**\n\n"
-                f"Un médico especialista (Dr. {masked_doctor_phone}) ha revisado y **APROBADO** su pre-diagnóstico.\n\n"
-                f"📞 **Próximos pasos**: Un especialista se pondrá en contacto contigo pronto para discutir los resultados y los siguientes pasos."
-            )
-        elif decision == "DENEGAR":
-            patient_message = (
-                f"⚠️ **DIAGNÓSTICO REQUIERE REVISIÓN**\n\n"
-                f"Un médico especialista (Dr. {masked_doctor_phone}) ha revisado su pre-diagnóstico y considera que **requiere evaluación adicional**.\n\n"
-                f"📞 **Próximos pasos**: Nos pondremos en contacto contigo para coordinar una evaluación más profunda."
-            )
-        elif decision == "MIXTO":
-            patient_message = (
-                f"🔄 **DIAGNÓSTICO EN REVISIÓN**\n\n"
-                f"Un médico especialista (Dr. {masked_doctor_phone}) ha revisado su pre-diagnóstico y requiere **evaluación mixta**.\n\n"
-                f"📞 **Próximos pasos**: Un equipo de especialistas revisará tu caso para ofrecerte la mejor orientación."
-            )
+        # Use the new specialist approval messages
+        if decision in SPECIALIST_APPROVAL_MESSAGES:
+            patient_message = SPECIALIST_APPROVAL_MESSAGES[decision]
         else:
+            # Fallback message for unknown decisions
+            masked_doctor_phone = f"{doctor_phone[:5]}***{doctor_phone[-4:]}" if len(doctor_phone) > 8 else "Esp. ***"
             patient_message = (
-                f"ℹ️ **ACTUALIZACIÓN DE SU DIAGNÓSTICO**\n\n"
-                f"Un médico especialista (Dr. {masked_doctor_phone}) ha revisado su pre-diagnóstico. Nos pondremos en contacto con usted para más detalles."
+                f"ℹ️ **ACTUALIZACIÓN DE SU APOYO DIAGNÓSTICO**\n\n"
+                f"Un especialista (Esp. {masked_doctor_phone}) ha revisado su apoyo diagnóstico. Nos pondremos en contacto contigo para más detalles."
             )
         
         try:
@@ -336,7 +321,7 @@ class DoctorConversationService:
                 from app.models.session import SessionState
                 patient_session = self.patient_session_manager.user_sessions[patient_phone]
                 patient_session.state = SessionState.CONVERSATION_ENDED
-                patient_session.final_doctor_decision = decision
+                patient_session.final_specialist_decision = decision
                 patient_session.patient_notified_of_decision = True
                 
         except Exception as e:
@@ -373,7 +358,7 @@ class DoctorConversationService:
             f"🚨 **NUEVO CASO ASIGNADO**\n\n"
             f"👤 **Paciente**: {patient_phone}\n"
             f"📅 **Fecha**: {session.last_activity.strftime('%Y-%m-%d %H:%M')}\n\n"
-            f"Recibirás los detalles del pre-diagnóstico a continuación..."
+            f"Recibirás los detalles del apoyo diagnóstico a continuación..."
         )
         
         await self.whatsapp_service.send_text_message(doctor_phone, notification_message)

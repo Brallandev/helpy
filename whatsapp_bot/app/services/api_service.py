@@ -2,6 +2,7 @@
 
 import json
 import httpx
+import asyncio
 from typing import Dict, Any
 
 from app.config.settings import settings
@@ -13,10 +14,82 @@ class ExternalAPIService:
     """Service for communicating with external mental health processing API."""
     
     def __init__(self):
-        self.http_client = httpx.AsyncClient(timeout=30.0)
+        # Configure timeout with more specific settings
+        timeout_config = httpx.Timeout(
+            connect=10.0,  # Connection timeout
+            read=60.0,     # Read timeout (longer for processing)
+            write=10.0,    # Write timeout
+            pool=5.0       # Pool timeout
+        )
+        self.http_client = httpx.AsyncClient(timeout=timeout_config)
         self.base_url = settings.EXTERNAL_API_URL
         self.questions_endpoint = f"{self.base_url}/questions"
         self.answers_endpoint = f"{self.base_url}/answers"
+        self.max_retries = 3
+    
+    async def _make_api_request_with_retry(self, endpoint: str, payload: Dict[str, Any], request_type: str) -> Dict[str, Any]:
+        """Make API request with retry logic and exponential backoff.
+        
+        Args:
+            endpoint: The API endpoint to call
+            payload: The request payload
+            request_type: Type of request (INITIAL/FOLLOWUP) for logging
+            
+        Returns:
+            The API response or error response
+        """
+        last_exception = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                print(f"[API_RETRY] Attempt {attempt + 1}/{self.max_retries} for {request_type} request")
+                
+                response = await self.http_client.post(
+                    endpoint,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                # Enhanced logging for API response
+                result = self._log_api_response(response, request_type)
+                print(f"✅ [API_SUCCESS] {request_type} request succeeded on attempt {attempt + 1}")
+                return result
+                
+            except httpx.TimeoutException as e:
+                last_exception = e
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                print(f"⏰ [API_TIMEOUT] {request_type} request timed out on attempt {attempt + 1}")
+                print(f"   Timeout details: {repr(e)}")
+                
+                if attempt < self.max_retries - 1:  # Don't wait after the last attempt
+                    print(f"   Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                
+            except httpx.RequestError as e:
+                last_exception = e
+                wait_time = 2 ** attempt
+                print(f"🌐 [API_CONNECTION_ERROR] {request_type} request failed on attempt {attempt + 1}")
+                print(f"   Connection error: {repr(e)}")
+                
+                if attempt < self.max_retries - 1:
+                    print(f"   Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                
+            except Exception as e:
+                last_exception = e
+                print(f"❌ [API_UNEXPECTED_ERROR] {request_type} request failed with unexpected error: {repr(e)}")
+                break  # Don't retry on unexpected errors
+        
+        # All retries failed
+        print(f"\n❌ [API_ERROR] {request_type} connection failed after {self.max_retries} attempts")
+        print(f"   Final error: {repr(last_exception)}")
+        
+        return {
+            "error": f"API connection failed after {self.max_retries} attempts: {str(last_exception)}",
+            "continue_conversation": False,
+            "retry_attempts": self.max_retries,
+            "final_error_type": type(last_exception).__name__
+        }
     
     def _prepare_payload(self, session: UserSession, include_followup: bool = False) -> Dict[str, Any]:
         """Prepare the payload for the external API.
@@ -75,23 +148,8 @@ class ExternalAPIService:
         # Enhanced logging for API call
         self._log_api_request(payload, "INITIAL", self.questions_endpoint)
         
-        try:
-            response = await self.http_client.post(
-                self.questions_endpoint,
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            )
-            
-            # Enhanced logging for API response
-            result = self._log_api_response(response, "INITIAL")
-            return result
-            
-        except Exception as e:
-            print(f"\n❌ [API_ERROR] Connection failed: {repr(e)}")
-            return {
-                "error": f"API connection failed: {str(e)}",
-                "continue_conversation": False
-            }
+        # Use retry logic for the API call
+        return await self._make_api_request_with_retry(self.questions_endpoint, payload, "INITIAL")
     
     async def send_followup_data(self, session: UserSession) -> Dict[str, Any]:
         """Send follow-up answers to external API for final diagnosis.
@@ -107,23 +165,8 @@ class ExternalAPIService:
         # Enhanced logging for API call
         self._log_api_request(payload, "FOLLOWUP", self.answers_endpoint)
         
-        try:
-            response = await self.http_client.post(
-                self.answers_endpoint,
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            )
-            
-            # Enhanced logging for API response
-            result = self._log_api_response(response, "FOLLOWUP")
-            return result
-            
-        except Exception as e:
-            print(f"\n❌ [API_ERROR] Follow-up connection failed: {repr(e)}")
-            return {
-                "error": f"API connection failed: {str(e)}",
-                "continue_conversation": False
-            }
+        # Use retry logic for the API call
+        return await self._make_api_request_with_retry(self.answers_endpoint, payload, "FOLLOWUP")
     
     def _log_api_request(self, payload: Dict[str, Any], request_type: str = "INITIAL", endpoint: str = None) -> None:
         """Log the API request in a formatted way."""

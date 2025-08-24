@@ -160,10 +160,10 @@ async def get_all_sessions():
             "followup_questions_count": len(session.followup_questions),
             "current_followup_index": session.current_followup_index,
             "followup_answers_count": len(session.followup_answers),
-            "has_pre_diagnosis": session.pre_diagnosis is not None,
-            "doctors_notified_count": len(session.doctors_notified),
-            "doctor_responses_count": len(session.doctor_responses),
-            "final_doctor_decision": session.final_doctor_decision,
+            "has_diagnostic_support": session.diagnostic_support is not None,
+            "specialists_notified_count": len(session.specialists_notified),
+            "specialist_responses_count": len(session.specialist_responses),
+            "final_specialist_decision": session.final_specialist_decision,
             "patient_notified_of_decision": session.patient_notified_of_decision
         }
         for phone, session in sessions.items()

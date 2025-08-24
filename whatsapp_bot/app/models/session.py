@@ -15,6 +15,7 @@ class SessionState(Enum):
     PROCESSING_API = "processing_api"
     WAITING_FOR_FOLLOWUP = "waiting_for_followup"  # New state for follow-up questions
     WAITING_FOR_DOCTOR_APPROVAL = "waiting_for_doctor_approval"  # Waiting for doctor decision
+    WAITING_FOR_BASIC_ANALYSIS_CONFIRMATION = "waiting_for_basic_analysis_confirmation"  # Waiting for user to confirm basic analysis
     CONVERSATION_ENDED = "conversation_ended"
     CONSENT_DECLINED = "consent_declined"
 
@@ -36,10 +37,10 @@ class UserSession:
     followup_questions: List[str] = field(default_factory=list)  # Follow-up questions from API
     current_followup_index: int = 0  # Current follow-up question index
     followup_answers: List[Answer] = field(default_factory=list)  # Answers to follow-up questions
-    pre_diagnosis: Optional[Dict[str, Any]] = None  # Final pre-diagnosis from API
+    diagnostic_support: Optional[Dict[str, Any]] = None  # Final diagnostic support from API
     
-    # Doctor approval workflow fields
-    doctors_notified: List[str] = field(default_factory=list)  # List of doctor phone numbers notified
-    doctor_responses: List[Dict[str, Any]] = field(default_factory=list)  # Doctor approval responses
-    final_doctor_decision: Optional[str] = None  # Final doctor decision (APROBAR/DENEGAR/MIXTO)
-    patient_notified_of_decision: bool = False  # Whether patient was notified of doctor decision
+    # Specialist approval workflow fields
+    specialists_notified: List[str] = field(default_factory=list)  # List of specialist phone numbers notified
+    specialist_responses: List[Dict[str, Any]] = field(default_factory=list)  # Specialist approval responses
+    final_specialist_decision: Optional[str] = None  # Final specialist decision (APROBAR/DENEGAR/MIXTO)
+    patient_notified_of_decision: bool = False  # Whether patient was notified of specialist decision

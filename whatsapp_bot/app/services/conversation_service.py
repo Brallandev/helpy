@@ -74,6 +74,10 @@ class ConversationService:
             await self._handle_waiting_for_doctor_approval(phone_number)
             return
         
+        if session.state == SessionState.WAITING_FOR_BASIC_ANALYSIS_CONFIRMATION:
+            await self._handle_basic_analysis_confirmation(session, message_text)
+            return
+        
         # Handle the main conversation flow (questions)
         # Note: Doctor responses are now handled in main.py routing, not here
         await self._handle_conversation_flow(session, message_text)
@@ -248,30 +252,17 @@ class ConversationService:
             "Perfecto! muchas gracias por responder c: , Saber esto me permitira entenderte un poco mejor, pero ahora, me gustaria hacerte unas preguntas mas personalizadas. Déjame pensar un instante..., no te preocupes! te escribire apenas termine de pensar."
         )
         
-        # Store data in database first (most important)
-        print("[STORING_IN_DATABASE] Saving intake data...")
-        database_response = await self.database_service.store_intake_data(session)
-        
-        if database_response.get("success", False):
-            print("[DATABASE_SUCCESS] Intake data stored successfully")
-        else:
-            print(f"[DATABASE_ERROR] Failed to store data: {database_response.get('error', 'Unknown error')}")
-        
         # Send to external API for processing (should return follow-up questions)
+        # Note: Database storage moved to end after complete diagnostic
         print("[PROCESSING_WITH_API] Sending initial data to external API...")
         api_response = await self.api_service.send_data(session)
         
         # Check if we received follow-up questions
         if "questions" in api_response and api_response["questions"]:
-            await self._handle_followup_questions(session, api_response["questions"], database_response)
+            await self._handle_followup_questions(session, api_response["questions"])
         else:
             # No follow-up questions, handle as final response
             response_message = await self._handle_api_response(session, api_response)
-            
-            # Add database status to response if there was an error
-            if not database_response.get("success", False):
-                response_message = f"{response_message}\n\n⚠️ Nota: Hubo un problema guardando los datos, pero tu información ha sido procesada."
-            
             await self.whatsapp_service.send_text_message(session.phone_number, response_message)
         
         # Continue conversation if API indicates to do so
@@ -287,7 +278,33 @@ class ConversationService:
         """Process API response and generate appropriate message for user."""
         if "error" in api_response:
             session.state = SessionState.CONVERSATION_ENDED
-            return "Lo siento, ha ocurrido un error procesando tu información. Por favor intenta más tarde."
+            
+            # Provide specific error messages based on error type
+            error_type = api_response.get("final_error_type", "")
+            retry_attempts = api_response.get("retry_attempts", 0)
+            
+            if "Timeout" in error_type:
+                return (
+                    "⏰ **Tiempo de espera agotado**\n\n"
+                    "Nuestro sistema de análisis está tardando más de lo esperado. "
+                    f"Hemos intentado conectar {retry_attempts} veces.\n\n"
+                    "📞 **No te preocupes**, tu información está guardada. "
+                    "Por favor intenta nuevamente en unos minutos o contacta a nuestro soporte."
+                )
+            elif retry_attempts > 0:
+                return (
+                    "🌐 **Problema de conexión**\n\n"
+                    f"Hemos intentado procesar tu información {retry_attempts} veces pero "
+                    "hay dificultades técnicas temporales.\n\n"
+                    "📞 **Tu información está segura**. "
+                    "Por favor intenta más tarde o contacta a nuestro soporte si el problema persiste."
+                )
+            else:
+                return (
+                    "❌ **Error técnico**\n\n"
+                    "Ha ocurrido un error procesando tu información. "
+                    "Por favor intenta más tarde o contacta a nuestro soporte."
+                )
         
         # Check if conversation should continue
         should_continue = api_response.get("continue_conversation", False)
@@ -320,7 +337,7 @@ class ConversationService:
         session.state = SessionState.WAITING_FOR_ANSWER
         return new_message
     
-    async def _handle_followup_questions(self, session: UserSession, questions: list, database_response: dict) -> None:
+    async def _handle_followup_questions(self, session: UserSession, questions: list) -> None:
         """Handle follow-up questions received from the API."""
         print(f"[FOLLOWUP_QUESTIONS] Received {len(questions)} follow-up questions")
         
@@ -329,15 +346,10 @@ class ConversationService:
         session.current_followup_index = 0
         session.state = SessionState.WAITING_FOR_FOLLOWUP
         
-        # Add database status message if there was an error
-        status_message = ""
-        if not database_response.get("success", False):
-            status_message = "\n\n⚠️ Nota: Hubo un problema guardando los datos iniciales, pero continuaré con las preguntas adicionales."
-        
         # Send transition message and first follow-up question
         await self.whatsapp_service.send_text_message(
             session.phone_number,
-            f"Gracias por completar las preguntas iniciales. Ahora tengo algunas preguntas adicionales para brindarte un mejor análisis.{status_message}"
+            "Gracias por completar las preguntas iniciales. Ahora tengo algunas preguntas adicionales para brindarte un mejor análisis."
         )
         
         # Ask first follow-up question
@@ -403,8 +415,24 @@ class ConversationService:
         # Handle the pre-diagnosis response (check both possible field names)
         if "pre-diagnosis" in api_response or "pre_diagnosis" in api_response:
             await self._handle_pre_diagnosis(session, api_response)
+        elif "error" in api_response:
+            # Handle API errors gracefully
+            response_message = await self._handle_api_response(session, api_response)
+            await self.whatsapp_service.send_text_message(session.phone_number, response_message)
+            
+            # If it's a timeout or connection error, offer to proceed with basic analysis
+            error_type = api_response.get("final_error_type", "")
+            if "Timeout" in error_type or "RequestError" in error_type:
+                await self.whatsapp_service.send_text_message(
+                    session.phone_number,
+                    "🔄 **Opción alternativa**: Si prefieres, podemos continuar con un análisis básico "
+                    "de tus respuestas mientras solucionamos el problema técnico. "
+                    "Responde 'continuar' si quieres proceder."
+                )
+                # Set a special state to allow basic analysis
+                session.state = SessionState.WAITING_FOR_BASIC_ANALYSIS_CONFIRMATION
         else:
-            # Fallback response
+            # Fallback response for other cases
             response_message = await self._handle_api_response(session, api_response)
             await self.whatsapp_service.send_text_message(session.phone_number, response_message)
             session.state = SessionState.CONVERSATION_ENDED
@@ -413,7 +441,7 @@ class ConversationService:
         """Handle and display the pre-diagnosis to the user."""
         print("[PRE_DIAGNOSIS] Processing and sending pre-diagnosis")
         
-        session.pre_diagnosis = api_response
+        session.diagnostic_support = api_response
         
         # Handle both possible field names from API
         pre_diagnosis = api_response.get("pre-diagnosis", "") or api_response.get("pre_diagnosis", "")
@@ -437,68 +465,141 @@ class ConversationService:
         
         # Send explanation about doctor validation process
         validation_message = (
-            "📋 **Este es tu pre-diagnóstico**\n\n"
-            "Es importante para nosotros que un médico lo valide, por lo cual, "
-            "en este mismo instante enviaré a los diferentes doctores el mensaje "
-            "para que lo validen y te proporcionen la mejor atención médica.\n\n"
+            "📋 **Este es tu apoyo diagnóstico**\n\n"
+            "Es importante para nosotros que un especialista lo valide, por lo cual, "
+            "en este mismo instante enviaré a los diferentes especialistas el mensaje "
+            "para que lo validen y te proporcionen la mejor atención especializada.\n\n"
             "⏰ **Recibirás una respuesta de nuestros especialistas pronto.**"
         )
         
         await self.whatsapp_service.send_text_message(session.phone_number, validation_message)
         
+        # Store complete diagnostic data in database
+        print("[STORING_COMPLETE_DATA] Saving complete diagnostic data to database...")
+        try:
+            database_response = await self.database_service.store_complete_diagnostic_data(session, api_response)
+            
+            if database_response.get("success", False):
+                print("[DATABASE_SUCCESS] Complete diagnostic data stored successfully")
+            else:
+                print(f"[DATABASE_ERROR] Failed to store complete data: {database_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            print(f"[DATABASE_EXCEPTION] Error storing complete data: {repr(e)}")
+        
         # Notify doctors about the new pre-diagnosis
         print("[DOCTOR_NOTIFICATION] Starting doctor notification process")
         await self.whatsapp_service.send_text_message(
             session.phone_number,
-            "📤 Enviando tu pre-diagnóstico a nuestros médicos especialistas para validación..."
+            "📤 Enviando tu apoyo diagnóstico a nuestros especialistas para validación..."
         )
         
         try:
             # Import doctor services at runtime to avoid circular imports
             from main import doctor_session_manager, doctor_conversation_service
             
-            # Get active registered doctors instead of using API
+            # Get doctors from BOTH systems and only notify intersection
             active_doctors = doctor_session_manager.get_active_doctors()
+            api_doctor_phones = await self.doctor_service.get_doctor_phone_numbers()
+            
+            # Get phone numbers from registered WhatsApp doctors
+            whatsapp_doctor_phones = [doctor.phone_number for doctor in active_doctors]
+            
+            # Normalize phone numbers for proper comparison
+            normalized_whatsapp_phones = [self._normalize_phone_number(phone) for phone in whatsapp_doctor_phones]
+            normalized_api_phones = [self._normalize_phone_number(phone) for phone in api_doctor_phones]
+            
+            # Find intersection - doctors who are in BOTH systems (using normalized numbers)
+            normalized_intersection = list(set(normalized_whatsapp_phones) & set(normalized_api_phones))
+            
+            # Map back to original WhatsApp phone numbers for notification
+            intersection_phones = []
+            for doctor in active_doctors:
+                if self._normalize_phone_number(doctor.phone_number) in normalized_intersection:
+                    intersection_phones.append(doctor.phone_number)
+            
+            print(f"📱 Found {len(whatsapp_doctor_phones)} registered WhatsApp specialists")
+            print(f"🌐 Found {len(api_doctor_phones)} API specialist phone numbers")
+            print(f"📞 Normalized WhatsApp phones: {normalized_whatsapp_phones}")
+            print(f"📞 Normalized API phones: {normalized_api_phones}")
+            print(f"🎯 Found {len(intersection_phones)} specialists in BOTH systems")
+            
+            # Show breakdown for transparency (using normalized numbers)
+            whatsapp_only_normalized = set(normalized_whatsapp_phones) - set(normalized_api_phones)
+            api_only_normalized = set(normalized_api_phones) - set(normalized_whatsapp_phones)
+            
+            # Map back to original numbers for display
+            whatsapp_only = []
+            api_only = []
+            
+            for phone in whatsapp_doctor_phones:
+                if self._normalize_phone_number(phone) in whatsapp_only_normalized:
+                    whatsapp_only.append(phone)
+            
+            for phone in api_doctor_phones:
+                if self._normalize_phone_number(phone) in api_only_normalized:
+                    api_only.append(phone)
+            
+            if whatsapp_only:
+                print(f"   ⚠️ WhatsApp-only specialists (NOT notified): {len(whatsapp_only)}")
+                for phone in whatsapp_only:
+                    print(f"      • {phone}")
+            
+            if api_only:
+                print(f"   ⚠️ API-only specialists (NOT notified): {len(api_only)}")
+                for phone in api_only:
+                    print(f"      • {phone}")
+            
             notified_doctors = []
             
-            if active_doctors:
-                print(f"📋 Found {len(active_doctors)} active registered doctors")
-                for doctor_session in active_doctors:
+            if intersection_phones:
+                print(f"📋 Notifying {len(intersection_phones)} specialists present in BOTH systems:")
+                for phone in intersection_phones:
+                    print(f"   🎯 {phone}")
+                
+                for doctor_phone in intersection_phones:
                     try:
-                        # Notify doctor of new case assignment
-                        success = await doctor_conversation_service.notify_doctor_of_new_case(
-                            doctor_session.phone_number, session.phone_number
+                        # Find the doctor session for this phone
+                        doctor_session = next(
+                            (d for d in active_doctors if d.phone_number == doctor_phone), 
+                            None
                         )
                         
-                        if success:
-                            # Send the diagnosis details directly
-                            await self._send_diagnosis_to_doctor(
-                                doctor_session.phone_number, session, api_response
+                        if doctor_session:
+                            # Notify doctor of new case assignment
+                            success = await doctor_conversation_service.notify_doctor_of_new_case(
+                                doctor_phone, session.phone_number
                             )
-                            notified_doctors.append(doctor_session.phone_number)
-                            print(f"✅ Notified registered doctor: {doctor_session.phone_number}")
+                            
+                            if success:
+                                # Send the diagnosis details directly
+                                await self._send_diagnosis_to_doctor(
+                                    doctor_phone, session, api_response
+                                )
+                                notified_doctors.append(doctor_phone)
+                                print(f"✅ Notified specialist (both systems): {doctor_phone}")
+                            else:
+                                print(f"⚠️ Failed to assign case to specialist: {doctor_phone}")
+                        else:
+                            print(f"❌ Could not find WhatsApp session for specialist: {doctor_phone}")
                         
                     except Exception as e:
-                        print(f"❌ Failed to notify registered doctor {doctor_session.phone_number}: {repr(e)}")
+                        print(f"❌ Failed to notify specialist {doctor_phone}: {repr(e)}")
             else:
-                print("⚠️ No active registered doctors found, using API fallback...")
-                # Fallback to API-based doctor notification
-                notified_doctors = await self.doctor_service.notify_doctors_about_diagnosis(
-                    session, api_response, self.whatsapp_service
-                )
+                print("⚠️ No specialists found in BOTH systems - no notifications sent")
+                print("   💡 Specialists must be registered in WhatsApp AND present in API to receive notifications")
             
-            session.doctors_notified = notified_doctors
+            session.specialists_notified = notified_doctors
             
             if notified_doctors:
                 await self.whatsapp_service.send_text_message(
                     session.phone_number,
-                    f"✅ Tu pre-diagnóstico ha sido enviado a {len(notified_doctors)} médicos especialistas. "
-                    f"Recibirás la validación médica pronto."
+                    f"✅ Tu apoyo diagnóstico ha sido enviado a {len(notified_doctors)} especialistas. "
+                    f"Recibirás la validación especializada pronto."
                 )
             else:
                 await self.whatsapp_service.send_text_message(
                     session.phone_number,
-                    "⚠️ Hubo un problema notificando a los médicos. Por favor contacta a nuestro soporte."
+                    "⚠️ Hubo un problema notificando a los especialistas. Por favor contacta a nuestro soporte."
                 )
                 
         except Exception as e:
@@ -521,17 +622,158 @@ class ConversationService:
         print(f"[WAITING_FOR_DOCTOR] Patient {phone_number} sent message while waiting for doctor approval")
         
         waiting_message = (
-            "⏳ **Tu diagnóstico está siendo revisado**\n\n"
-            "Hemos enviado tu pre-diagnóstico a nuestros médicos especialistas "
+            "⏳ **Tu apoyo diagnóstico está siendo revisado**\n\n"
+            "Hemos enviado tu apoyo diagnóstico a nuestros especialistas "
             "para su validación. Te notificaremos tan pronto como recibamos "
-            "la respuesta médica.\n\n"
+            "la respuesta especializada.\n\n"
             "🏥 **No es necesario que envíes más mensajes por ahora.** "
-            "Recibirás una notificación automática cuando el médico "
+            "Recibirás una notificación automática cuando el especialista "
             "haya completado la revisión.\n\n"
             "⏰ **Tiempo estimado de respuesta: 1-2 horas**"
         )
         
         await self.whatsapp_service.send_text_message(phone_number, waiting_message)
+    
+    async def _handle_basic_analysis_confirmation(self, session: UserSession, message_text: str) -> None:
+        """Handle user confirmation for basic analysis when API fails."""
+        message_lower = message_text.lower().strip()
+        
+        if message_lower in ["continuar", "continúar", "continue", "si", "sí", "yes", "1", "ok"]:
+            print(f"[BASIC_ANALYSIS] User {session.phone_number} confirmed basic analysis")
+            
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                "🔍 **Procesando análisis básico**\n\n"
+                "Analizando tus respuestas con nuestro sistema local..."
+            )
+            
+            # Generate basic analysis based on user answers
+            basic_analysis = self._generate_basic_analysis(session)
+            
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                basic_analysis
+            )
+            
+            # Send explanation about specialist validation
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                "📋 **Este es tu apoyo diagnóstico básico**\n\n"
+                "Es importante que un especialista lo valide cuando nuestro sistema "
+                "esté disponible nuevamente. Te recomendamos guardar esta información "
+                "y consultar con un especialista pronto.\n\n"
+                "⏰ **También intentaremos procesar tu caso completo más tarde.**"
+            )
+            
+            session.state = SessionState.CONVERSATION_ENDED
+            
+        elif message_lower in ["no", "cancel", "cancelar", "0", "no gracias"]:
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                "Entendido. Tu información está guardada y intentaremos procesar tu caso "
+                "cuando nuestro sistema esté disponible. Te contactaremos pronto.\n\n"
+                "📞 Si tienes alguna urgencia, por favor contacta a nuestro soporte."
+            )
+            session.state = SessionState.CONVERSATION_ENDED
+            
+        else:
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                "Por favor responde 'continuar' para proceder con el análisis básico "
+                "o 'no' para esperar a que el sistema esté disponible."
+            )
+    
+    def _generate_basic_analysis(self, session: UserSession) -> str:
+        """Generate a basic analysis based on user answers when API is unavailable."""
+        # Count concerning answers
+        concerning_patterns = []
+        
+        # Check for key concerning responses
+        for answer in session.answers:
+            answer_lower = answer.value.lower()
+            
+            if answer.question_id == "anxiety" and any(word in answer_lower for word in ["sí", "si", "frecuentemente", "mucho"]):
+                concerning_patterns.append("Niveles de ansiedad elevados")
+            
+            if answer.question_id == "sadness" and any(word in answer_lower for word in ["sí", "si", "deprimido", "triste"]):
+                concerning_patterns.append("Síntomas de tristeza o depresión")
+            
+            if answer.question_id == "self_harm_thoughts" and any(word in answer_lower for word in ["sí", "si"]):
+                concerning_patterns.append("⚠️ URGENTE: Pensamientos de autolesión reportados")
+            
+            if answer.question_id == "loss_of_interest" and any(word in answer_lower for word in ["sí", "si"]):
+                concerning_patterns.append("Pérdida de interés en actividades")
+        
+        # Generate basic recommendations
+        if any("URGENTE" in pattern for pattern in concerning_patterns):
+            priority = "ALTA PRIORIDAD"
+            recommendation = (
+                "📞 **RECOMENDACIÓN URGENTE**: Contacta inmediatamente a un profesional "
+                "de salud mental o servicios de emergencia."
+            )
+        elif len(concerning_patterns) >= 3:
+            priority = "PRIORIDAD MODERADA-ALTA"
+            recommendation = (
+                "📞 **RECOMENDACIÓN**: Te sugerimos contactar a un especialista en salud mental "
+                "en los próximos días para una evaluación completa."
+            )
+        elif len(concerning_patterns) >= 1:
+            priority = "PRIORIDAD MODERADA"
+            recommendation = (
+                "📞 **RECOMENDACIÓN**: Considera consultar con un especialista en salud mental "
+                "para explorar estrategias de bienestar."
+            )
+        else:
+            priority = "SEGUIMIENTO PREVENTIVO"
+            recommendation = (
+                "📞 **RECOMENDACIÓN**: Mantén hábitos saludables y no dudes en buscar apoyo "
+                "si tu situación cambia."
+            )
+        
+        # Format the basic analysis
+        analysis = f"""🔍 **ANÁLISIS BÁSICO DE BIENESTAR**
+
+📊 **Nivel de Prioridad**: {priority}
+
+📋 **Patrones Identificados**:
+"""
+        
+        if concerning_patterns:
+            for pattern in concerning_patterns:
+                analysis += f"• {pattern}\n"
+        else:
+            analysis += "• No se identificaron patrones de preocupación inmediata\n"
+        
+        analysis += f"\n{recommendation}\n\n"
+        analysis += (
+            "⚠️ **Nota Importante**: Este es un análisis básico preliminar. "
+            "Para un diagnóstico completo y preciso, es fundamental la evaluación "
+            "de un profesional de salud mental calificado."
+        )
+        
+        return analysis
+    
+    def _normalize_phone_number(self, phone: str) -> str:
+        """Normalize phone number format for consistent comparison.
+        
+        Args:
+            phone: Phone number in any format
+            
+        Returns:
+            Normalized phone number without '+' and with consistent formatting
+        """
+        if not phone:
+            return ""
+        
+        # Remove '+' and any whitespace
+        normalized = phone.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        
+        # Ensure it starts with country code if it's a Colombian number
+        if len(normalized) == 10 and normalized.startswith("3"):
+            # Add Colombia country code (57) if missing
+            normalized = "57" + normalized
+        
+        return normalized
     
     async def _send_diagnosis_to_doctor(self, doctor_phone: str, session: UserSession, api_response: Dict[str, Any]) -> None:
         """Send diagnosis details to a specific registered doctor.

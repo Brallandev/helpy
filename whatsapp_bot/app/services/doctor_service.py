@@ -79,11 +79,11 @@ class DoctorService:
         
         # Prepare greeting message
         greeting_message = (
-            "🏥 **NUEVA PRE-DIAGNÓSTICO DISPONIBLE**\n\n"
+            "🏥 **NUEVO APOYO DIAGNÓSTICO DISPONIBLE**\n\n"
             f"📱 Paciente: {session.phone_number}\n"
             f"📊 Prioridad: {pre_diagnosis.get('score', 'No especificado')}\n"
             f"⏰ Fecha: {session.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
-            "Un nuevo pre-diagnóstico requiere su revisión médica."
+            "Un nuevo apoyo diagnóstico requiere su revisión especializada."
         )
         
         # Prepare detailed diagnosis message
@@ -143,13 +143,13 @@ class DoctorService:
         # Get key answers for context
         key_answers = self._get_key_patient_answers(session)
         
-        formatted_message = f"""🏥 **DETALLES DEL PRE-DIAGNÓSTICO**
+        formatted_message = f"""🏥 **DETALLES DEL APOYO DIAGNÓSTICO**
 
 👤 **Paciente**: {patient_phone}
 📊 **Prioridad**: {score}
 📅 **Fecha**: {session.created_at.strftime('%Y-%m-%d %H:%M')}
 
-🔍 **Pre-Diagnóstico**:
+🔍 **Apoyo Diagnóstico**:
 {diagnosis}
 
 💬 **Comentarios y Recomendaciones**:
@@ -158,7 +158,7 @@ class DoctorService:
 📋 **Respuestas Clave del Paciente**:
 {key_answers}
 
-⚕️ **Su revisión médica es requerida para continuar con el tratamiento del paciente.**"""
+⚕️ **Su revisión especializada es requerida para continuar con el tratamiento del paciente.**"""
         
         return formatted_message
 
@@ -241,7 +241,7 @@ class DoctorService:
         if not decision:
             # Send help message to doctor if response unclear
             help_message = (
-                "Para validar el diagnóstico, por favor responde:\n"
+                "Para validar el apoyo diagnóstico, por favor responde:\n"
                 "1. APROBAR\n"
                 "2. DENEGAR\n"
                 "3. MIXTO\n\n"
