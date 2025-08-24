@@ -2,11 +2,20 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
   "scripts": {
     "build": "next build",
+    "build:linux": "NODE_ENV=production next build",
     "dev": "next dev",
+    "dev:linux": "NODE_ENV=development next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "clean": "rm -rf .next out node_modules/.cache",
+    "clean:win": "rmdir /s /q .next & rmdir /s /q out & rmdir /s /q node_modules\\.cache",
+    "postinstall": "next telemetry disable"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
