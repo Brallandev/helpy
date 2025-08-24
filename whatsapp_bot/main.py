@@ -111,7 +111,11 @@ async def get_all_sessions():
             "last_activity": session.last_activity.isoformat(),
             "first_question_asked": session.first_question_asked,
             "consent_given": session.consent_given,
-            "greeting_sent": session.greeting_sent
+            "greeting_sent": session.greeting_sent,
+            "followup_questions_count": len(session.followup_questions),
+            "current_followup_index": session.current_followup_index,
+            "followup_answers_count": len(session.followup_answers),
+            "has_pre_diagnosis": session.pre_diagnosis is not None
         }
         for phone, session in sessions.items()
     }

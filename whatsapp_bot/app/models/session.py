@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Optional, Dict, Any
 
 from .question import Answer
 
@@ -13,6 +13,7 @@ class SessionState(Enum):
     WAITING_FOR_CONSENT = "waiting_for_consent"
     WAITING_FOR_ANSWER = "waiting_for_answer"
     PROCESSING_API = "processing_api"
+    WAITING_FOR_FOLLOWUP = "waiting_for_followup"  # New state for follow-up questions
     CONVERSATION_ENDED = "conversation_ended"
     CONSENT_DECLINED = "consent_declined"
 
@@ -29,3 +30,9 @@ class UserSession:
     first_question_asked: bool = False  # Track if we've asked the first question
     consent_given: bool = False  # Track if user has given consent
     greeting_sent: bool = False  # Track if greeting has been sent
+    
+    # New fields for dynamic follow-up questions
+    followup_questions: List[str] = field(default_factory=list)  # Follow-up questions from API
+    current_followup_index: int = 0  # Current follow-up question index
+    followup_answers: List[Answer] = field(default_factory=list)  # Answers to follow-up questions
+    pre_diagnosis: Optional[Dict[str, Any]] = None  # Final pre-diagnosis from API

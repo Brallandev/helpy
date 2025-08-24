@@ -63,6 +63,10 @@ class ConversationService:
             await self._handle_consent_flow(session, message_text)
             return
         
+        if session.state == SessionState.WAITING_FOR_FOLLOWUP:
+            await self._handle_followup_flow(session, message_text)
+            return
+        
         # Handle the main conversation flow (questions)
         await self._handle_conversation_flow(session, message_text)
     
@@ -245,16 +249,22 @@ class ConversationService:
         else:
             print(f"[DATABASE_ERROR] Failed to store data: {database_response.get('error', 'Unknown error')}")
         
-        # Send to external API for processing
-        print("[PROCESSING_WITH_API] Sending to external API...")
+        # Send to external API for processing (should return follow-up questions)
+        print("[PROCESSING_WITH_API] Sending initial data to external API...")
         api_response = await self.api_service.send_data(session)
-        response_message = await self._handle_api_response(session, api_response)
         
-        # Add database status to response if there was an error
-        if not database_response.get("success", False):
-            response_message = f"{response_message}\n\n⚠️ Nota: Hubo un problema guardando los datos, pero tu información ha sido procesada."
-        
-        await self.whatsapp_service.send_text_message(session.phone_number, response_message)
+        # Check if we received follow-up questions
+        if "questions" in api_response and api_response["questions"]:
+            await self._handle_followup_questions(session, api_response["questions"], database_response)
+        else:
+            # No follow-up questions, handle as final response
+            response_message = await self._handle_api_response(session, api_response)
+            
+            # Add database status to response if there was an error
+            if not database_response.get("success", False):
+                response_message = f"{response_message}\n\n⚠️ Nota: Hubo un problema guardando los datos, pero tu información ha sido procesada."
+            
+            await self.whatsapp_service.send_text_message(session.phone_number, response_message)
         
         # Continue conversation if API indicates to do so
         if session.state == SessionState.WAITING_FOR_ANSWER:
@@ -301,3 +311,122 @@ class ConversationService:
         # Reset to continue asking questions
         session.state = SessionState.WAITING_FOR_ANSWER
         return new_message
+    
+    async def _handle_followup_questions(self, session: UserSession, questions: list, database_response: dict) -> None:
+        """Handle follow-up questions received from the API."""
+        print(f"[FOLLOWUP_QUESTIONS] Received {len(questions)} follow-up questions")
+        
+        # Store follow-up questions in session
+        session.followup_questions = questions
+        session.current_followup_index = 0
+        session.state = SessionState.WAITING_FOR_FOLLOWUP
+        
+        # Add database status message if there was an error
+        status_message = ""
+        if not database_response.get("success", False):
+            status_message = "\n\n⚠️ Nota: Hubo un problema guardando los datos iniciales, pero continuaré con las preguntas adicionales."
+        
+        # Send transition message and first follow-up question
+        await self.whatsapp_service.send_text_message(
+            session.phone_number,
+            f"Gracias por completar las preguntas iniciales. Ahora tengo algunas preguntas adicionales para brindarte un mejor análisis.{status_message}"
+        )
+        
+        # Ask first follow-up question
+        await self._ask_current_followup_question(session)
+    
+    async def _handle_followup_flow(self, session: UserSession, message_text: str) -> None:
+        """Handle the follow-up questions flow."""
+        print(f"[FOLLOWUP_FLOW] Processing answer to follow-up question {session.current_followup_index + 1}")
+        
+        # Save the current follow-up answer
+        self._save_followup_answer(session, message_text)
+        
+        # Check if all follow-up questions have been answered
+        if session.current_followup_index >= len(session.followup_questions):
+            await self._handle_all_followup_answered(session)
+        else:
+            # Ask next follow-up question
+            await self._ask_current_followup_question(session)
+    
+    def _save_followup_answer(self, session: UserSession, answer_text: str) -> None:
+        """Save a user's answer to a follow-up question."""
+        from app.models.question import Answer
+        
+        # Create answer with a generic ID for follow-up questions
+        answer = Answer(
+            question_id=f"followup_{session.current_followup_index + 1}",
+            value=answer_text
+        )
+        session.followup_answers.append(answer)
+        session.current_followup_index += 1
+        
+        print(f"[FOLLOWUP_ANSWER_SAVED] followup_{session.current_followup_index}: {answer_text}")
+    
+    async def _ask_current_followup_question(self, session: UserSession) -> None:
+        """Ask the current follow-up question."""
+        if session.current_followup_index < len(session.followup_questions):
+            question_text = session.followup_questions[session.current_followup_index]
+            question_number = session.current_followup_index + 1
+            total_questions = len(session.followup_questions)
+            
+            print(f"[ASKING_FOLLOWUP] Question {question_number}/{total_questions}")
+            await self.whatsapp_service.send_text_message(
+                session.phone_number,
+                f"Pregunta adicional {question_number}/{total_questions}:\n\n{question_text}"
+            )
+        else:
+            print("[ERROR] No current follow-up question available!")
+    
+    async def _handle_all_followup_answered(self, session: UserSession) -> None:
+        """Handle when all follow-up questions have been answered."""
+        print("[ALL_FOLLOWUP_ANSWERED] Processing final data with API")
+        session.state = SessionState.PROCESSING_API
+        
+        await self.whatsapp_service.send_text_message(
+            session.phone_number,
+            "Excelente! He completado todas las preguntas. Ahora analizaré toda la información para darte un diagnóstico preliminar..."
+        )
+        
+        # Send complete data (initial + follow-up) to API for final diagnosis
+        print("[PROCESSING_FINAL_DATA] Sending complete data to external API...")
+        api_response = await self.api_service.send_followup_data(session)
+        
+        # Handle the pre-diagnosis response
+        if "pre-diagnosis" in api_response:
+            await self._handle_pre_diagnosis(session, api_response)
+        else:
+            # Fallback response
+            response_message = await self._handle_api_response(session, api_response)
+            await self.whatsapp_service.send_text_message(session.phone_number, response_message)
+            session.state = SessionState.CONVERSATION_ENDED
+    
+    async def _handle_pre_diagnosis(self, session: UserSession, api_response: dict) -> None:
+        """Handle and display the pre-diagnosis to the user."""
+        print("[PRE_DIAGNOSIS] Processing and sending pre-diagnosis")
+        
+        session.pre_diagnosis = api_response
+        
+        pre_diagnosis = api_response.get("pre-diagnosis", "")
+        comments = api_response.get("comments", "")
+        score = api_response.get("score", "")
+        
+        # Format the pre-diagnosis message
+        diagnosis_message = "🏥 **ANÁLISIS PRELIMINAR**\n\n"
+        
+        if score:
+            diagnosis_message += f"📊 **Nivel de Prioridad**: {score}\n\n"
+        
+        if pre_diagnosis:
+            diagnosis_message += f"📋 **Diagnóstico Preliminar**:\n{pre_diagnosis}\n\n"
+        
+        if comments:
+            diagnosis_message += f"💬 **Comentarios y Recomendaciones**:\n{comments}\n\n"
+        
+        diagnosis_message += "⚠️ **Importante**: Este es un análisis preliminar basado en tus respuestas. Para un diagnóstico definitivo y tratamiento adecuado, es importante que consultes con un profesional de la salud mental."
+        
+        await self.whatsapp_service.send_text_message(session.phone_number, diagnosis_message)
+        
+        # End the conversation
+        session.state = SessionState.CONVERSATION_ENDED
+        print("[CONVERSATION_COMPLETE] Pre-diagnosis delivered, conversation ended")

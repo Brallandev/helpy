@@ -80,7 +80,7 @@ After consent is given, the bot asks these triage questions:
    - Full name
    - Age
 
-2. **Mental Health Assessment**
+2. **Mental Health Assessment (Initial 9 Questions)**
    - Main concern/worry
    - Anxiety levels
    - Symptom duration
@@ -92,6 +92,31 @@ After consent is given, the bot asks these triage questions:
    - Chronic fatigue
    - Desired outcomes
    - Specialist connection preference
+
+### 3. **Dynamic Follow-up Process**
+
+The bot now supports a **two-phase dynamic questioning system**:
+
+#### **Phase 1: Initial Assessment** 
+- 11 structured mental health questions (shown above)
+- Data stored in database for persistence
+- Sent to external API for initial analysis
+
+#### **Phase 2: Dynamic Follow-up (API-driven)**
+- API responds with 2-3 additional personalized questions
+- Questions tailored to user's initial responses
+- Examples:
+  - "¿Cómo describirías tu estado de ánimo en el día a día?"
+  - "¿Qué tan satisfecho te sientes con tus relaciones personales?"
+  - "¿Qué cambiarías para aumentar tu felicidad?"
+
+#### **Phase 3: Pre-diagnosis Delivery**
+- Complete data (initial + follow-up) sent to API
+- API generates comprehensive analysis:
+  - **Priority Score**: Risk assessment level
+  - **Pre-diagnosis**: Clinical insights
+  - **Recommendations**: Actionable guidance
+  - **Professional Disclaimer**: Clinical consultation advice
 
 ## ⚙️ Configuration
 
@@ -122,36 +147,152 @@ pip install -r requirements.txt
 
 ## 🔄 API Integration
 
-### Dual Endpoint Architecture
+### Dynamic Dual-Call Architecture
 
-When all questions are answered, the bot sends data to **two endpoints**:
+The bot employs a **sophisticated dual API approach** with **two separate API calls**:
 
-1. **📊 Database Storage** (Priority): Stores intake data for record keeping
-2. **🧠 External Processing API**: Processes data and generates responses
+#### **First API Call** (After Initial Questions)
+1. **📊 Database Storage**: Stores initial intake data for record keeping
+2. **🧠 External Processing API**: Processes initial data and returns follow-up questions
 
-### Request Format
+#### **Second API Call** (After Follow-up Questions)
+1. **🧠 External Processing API**: Processes complete data and returns pre-diagnosis
 
-Both endpoints receive the same payload structure:
+### Request Formats
+
+#### **Initial API Call Payload**
 
 ```json
 {
-  "user_phone": "+573213754760", 
-  "timestamp": "2025-08-23T16:30:15.123456",
-  "answers": {
-    "name": "Patient Name",
-    "age": "25", 
-    "main_concern": "Ansiedad por trabajo",
-    "anxiety": "Sí, frecuentemente",
-    "symptom_duration": "2 meses",
-    "relaxation_difficulty": "Sí, mucho",
-    "sadness": "A veces", 
-    "loss_of_interest": "Sí, en algunas actividades",
-    "hallucinations_meds": "No",
-    "self_harm_thoughts": "No",
-    "fatigue": "Sí, constantemente",
-    "desired_outcome": "Sentirme mejor",
-    "specialist_connection": "Sí, por favor"
-  }
+  "phone_number": "+573213754760",
+  "chat": [
+    {
+      "question": "¡Hola! 👋 Para comenzar, ¿cuál es tu nombre completo?",
+      "answer": "David Test"
+    },
+    {
+      "question": "¿Cuál es tu edad?",
+      "answer": "25"
+    },
+    {
+      "question": "¿Cuál es el motivo principal de tu preocupación?",
+      "answer": "Ansiedad por trabajo"
+    },
+    {
+      "question": "¿Te sientes nervioso, tenso o ansioso con frecuencia?",
+      "answer": "Sí, frecuentemente"
+    },
+    {
+      "question": "¿Cuánto tiempo llevas experimentando estos síntomas?",
+      "answer": "2 meses"
+    },
+    {
+      "question": "¿Estás teniendo dificultad para relajarte?",
+      "answer": "Sí, mucho"
+    },
+    {
+      "question": "¿Te sientes triste o deprimido y me puedes comentar un poco mas del contexto del porque?",
+      "answer": "A veces, por el trabajo"
+    },
+    {
+      "question": "¿Has perdido interés en actividades que antes disfrutabas? ¿Que actividades eran las que te interesaban antes y que sientes ahora cuando las haces?",
+      "answer": "Sí, en algunas actividades como deportes"
+    },
+    {
+      "question": "¿Tienes alucinaciones o estás en medicamentos psiquiátricos?",
+      "answer": "No"
+    },
+    {
+      "question": "¿Has tenido pensamientos sobre hacerte daño o acabar con tu vida?",
+      "answer": "No"
+    },
+    {
+      "question": "¿Te sientes cansado todo el tiempo sin razón aparente?",
+      "answer": "Sí, constantemente"
+    },
+    {
+      "question": "¿Qué te gustaría que pasara ahora mismo?",
+      "answer": "Sentirme mejor"
+    },
+    {
+      "question": "¿Quieres conectar ya con un especialista?",
+      "answer": "Sí, por favor"
+    }
+  ]
+}
+```
+
+#### **Follow-up API Call Payload**
+
+```json
+{
+  "phone_number": "+573213754760",
+  "chat": [
+    {
+      "question": "¡Hola! 👋 Para comenzar, ¿cuál es tu nombre completo?",
+      "answer": "David Test"
+    },
+    {
+      "question": "¿Cuál es tu edad?",
+      "answer": "25"
+    },
+    {
+      "question": "¿Cuál es el motivo principal de tu preocupación?",
+      "answer": "Ansiedad por trabajo"
+    },
+    {
+      "question": "¿Te sientes nervioso, tenso o ansioso con frecuencia?",
+      "answer": "Sí, frecuentemente"
+    },
+    {
+      "question": "¿Cuánto tiempo llevas experimentando estos síntomas?",
+      "answer": "2 meses"
+    },
+    {
+      "question": "¿Estás teniendo dificultad para relajarte?",
+      "answer": "Sí, mucho"
+    },
+    {
+      "question": "¿Te sientes triste o deprimido y me puedes comentar un poco mas del contexto del porque?",
+      "answer": "A veces, por el trabajo"
+    },
+    {
+      "question": "¿Has perdido interés en actividades que antes disfrutabas? ¿Que actividades eran las que te interesaban antes y que sientes ahora cuando las haces?",
+      "answer": "Sí, en algunas actividades como deportes"
+    },
+    {
+      "question": "¿Tienes alucinaciones o estás en medicamentos psiquiátricos?",
+      "answer": "No"
+    },
+    {
+      "question": "¿Has tenido pensamientos sobre hacerte daño o acabar con tu vida?",
+      "answer": "No"
+    },
+    {
+      "question": "¿Te sientes cansado todo el tiempo sin razón aparente?",
+      "answer": "Sí, constantemente"
+    },
+    {
+      "question": "¿Qué te gustaría que pasara ahora mismo?",
+      "answer": "Sentirme mejor"
+    },
+    {
+      "question": "¿Quieres conectar ya con un especialista?",
+      "answer": "Sí, por favor"
+    },
+    {
+      "question": "En general, ¿cómo describirías tu estado de ánimo y tus emociones en tu día a día?",
+      "answer": "Me siento triste por las mañanas especialmente"
+    },
+    {
+      "question": "Pensando en tus relaciones personales (familia, amigos, pareja), ¿qué tan satisfecho te sientes con la calidad y el apoyo que recibes?",
+      "answer": "Tengo buenas relaciones familiares que me apoyan"
+    },
+    {
+      "question": "Si pudieras cambiar algo en tu vida actual para aumentar significativamente tu felicidad, ¿qué sería?",
+      "answer": "Me gustaría tener más tiempo libre y menos presión laboral"
+    }
+  ]
 }
 ```
 
@@ -162,22 +303,28 @@ Both endpoints receive the same payload structure:
 - **Auth**: `Bearer eyJhbGciOiJIUzI1NiIs...`
 - **Purpose**: Store patient intake data for records
 
-### Response Format
+### Response Formats
 
-Your API should respond with:
+#### **Initial API Response** (With Follow-up Questions)
 
 ```json
 {
-  "continue_conversation": true,
-  "message": "Thank you for completing the assessment. A specialist will contact you soon.",
-  "final_message": "Assessment completed successfully",
-  "additional_questions": [
-    {
-      "id": "follow_up",
-      "text": "Is there anything else you'd like to add?",
-      "required": false
-    }
+  "questions": [
+    "En general, ¿cómo describirías tu estado de ánimo y tus emociones en tu día a día?",
+    "Pensando en tus relaciones personales, ¿qué tan satisfecho te sientes con ellas?",
+    "¿Qué cambiarías en tu vida para aumentar tu felicidad?"
   ]
+}
+```
+
+#### **Final API Response** (With Pre-diagnosis)
+
+```json
+{
+  "pre-diagnosis": "El usuario está experimentando un estado de ánimo persistentemente bajo, caracterizado por tristeza, decaimiento, apatía, soledad y falta de motivación.",
+  "comments": "Los análisis coinciden en que el usuario se encuentra en un estado de ánimo decaído. Se recomienda buscar apoyo profesional.",
+  "score": "Alta prioridad",
+  "filled_doc": "Diagnóstico completo con recomendaciones detalladas..."
 }
 ```
 
@@ -245,27 +392,38 @@ graph TD
     C --> D[Send consent form with buttons]
     D --> E[Wait for consent response]
     E --> F{Consent given?}
-    F -->|Yes| G[Start questionnaire]
+    F -->|Yes| G[Start initial questionnaire]
     F -->|No| H[Send goodbye message]
     H --> I[End conversation]
     G --> J[Ask first question]
     J --> K[Wait for answer]
     K --> L[Save answer]
-    L --> M{All questions answered?}
+    L --> M{All initial questions answered?}
     M -->|No| N[Ask next question]
-    M -->|Yes| O[Send to API]
-    O --> P{Continue conversation?}
-    P -->|Yes| Q[Ask additional questions]
-    P -->|No| I
+    M -->|Yes| O[Store in database + Send to API]
+    O --> P{API returns follow-up questions?}
+    P -->|Yes| Q[Start follow-up questionnaire]
+    P -->|No| R[Send final response + End]
+    Q --> S[Ask follow-up question]
+    S --> T[Wait for follow-up answer]
+    T --> U[Save follow-up answer]
+    U --> V{All follow-up answered?}
+    V -->|No| W[Ask next follow-up]
+    V -->|Yes| X[Send complete data to API]
+    X --> Y[Receive pre-diagnosis]
+    Y --> Z[Deliver structured analysis]
+    Z --> I
+    W --> T
     N --> K
-    Q --> K
-    B -->|No| R{Session state?}
-    R -->|Waiting consent| E
-    R -->|Waiting answer| L
-    R -->|Consent declined| H
-    R -->|Processing API| S[Ask to wait]
-    R -->|Ended| T[Restart flow]
-    T --> C
+    R --> I
+    B -->|No| AA{Session state?}
+    AA -->|Waiting consent| E
+    AA -->|Waiting answer| L
+    AA -->|Waiting follow-up| U
+    AA -->|Consent declined| H
+    AA -->|Processing API| BB[Ask to wait]
+    AA -->|Ended| CC[Restart flow]
+    CC --> C
 ```
 
 ## 🏥 Mental Health Considerations

@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from app.config.settings import settings
 from app.models.session import UserSession
+from app.config.questions import MENTAL_HEALTH_QUESTIONS
 
 
 class DatabaseService:
@@ -23,12 +24,23 @@ class DatabaseService:
             session: The user session with collected answers
             
         Returns:
-            The database API payload
+            The database API payload in the new format
         """
+        # Create question ID to question text mapping
+        question_map = {q.id: q.text for q in MENTAL_HEALTH_QUESTIONS}
+        
+        # Build chat array with initial answers
+        chat_array = []
+        for answer in session.answers:
+            question_text = question_map.get(answer.question_id, answer.question_id)
+            chat_array.append({
+                "question": question_text,
+                "answer": answer.value
+            })
+        
         return {
-            "user_phone": session.phone_number,
-            "timestamp": session.created_at.isoformat(),
-            "answers": {answer.question_id: answer.value for answer in session.answers}
+            "phone_number": session.phone_number,
+            "chat": chat_array
         }
     
     async def store_intake_data(self, session: UserSession) -> Dict[str, Any]:
@@ -74,8 +86,8 @@ class DatabaseService:
         print("[DATABASE_CALL] STORING DATA IN DATABASE")
         print("="*60)
         print(f"🎯 Endpoint: {self.database_url}")
-        print(f"📱 User: {payload.get('user_phone', 'Unknown')}")
-        print(f"📊 Total Answers: {len(payload.get('answers', {}))}")
+        print(f"📱 User: {payload.get('phone_number', 'Unknown')}")
+        print(f"📊 Total Q&A Pairs: {len(payload.get('chat', []))}")
         print(f"🔑 Auth: Bearer {self.auth_token[:20]}...{self.auth_token[-10:]}")
         print("\n📋 COMPLETE DATABASE PAYLOAD:")
         print("-" * 40)
