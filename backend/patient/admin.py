@@ -4,13 +4,13 @@ from .models import Patient, MedicalHistory, PatientDocument
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
-    list_display = ['patient_id', 'full_name', 'age', 'gender', 'phone_number', 'is_active', 'registration_date']
+    list_display = ['phone_number', 'full_name', 'age', 'gender', 'is_active', 'registration_date']
     list_filter = ['gender', 'blood_type', 'is_active', 'registration_date']
-    search_fields = ['patient_id', 'first_name', 'last_name', 'phone_number', 'email']
+    search_fields = ['first_name', 'last_name', 'phone_number', 'email']
     readonly_fields = ['registration_date', 'age']
     fieldsets = (
         ('Basic Information', {
-            'fields': ('patient_id', 'first_name', 'last_name', 'date_of_birth', 'gender')
+            'fields': ('first_name', 'last_name', 'date_of_birth', 'gender')
         }),
         ('Contact Information', {
             'fields': ('phone_number', 'email', 'address', 'emergency_contact_name', 'emergency_contact_phone')
