@@ -2,9 +2,15 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from src.api.schemas import ConfigStructure, ConfigDocStructure
 from src.utils.config_manager import update_config, get_config, update_doc, get_doc
+from src.utils.agent_registry import get_num_sessions
 from src.config import OPENROUTER_API_KEY
 
 router = APIRouter()
+
+@router.get("/activeSessions")
+async def get_active_sessions():
+    sessions = get_num_sessions()
+    return {"active_sessions": sessions}
 
 @router.get("/haskey")
 async def get_statusAPIKey():

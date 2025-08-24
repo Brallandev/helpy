@@ -24,3 +24,9 @@ def remove_session(session_id: str):
     """
     if session_id in AGENT_SESSIONS:
         del AGENT_SESSIONS[session_id]
+
+def get_num_sessions() -> int:
+    """
+    Get the number of active sessions
+    """
+    return len(AGENT_SESSIONS)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from src.api.schemas import BodyRequest
 from src.model.agents import AgentsGroup, ConsolidatorAgent
 from src.utils.config_manager import get_config, get_doc
-from src.utils.agent_registry import get_session
+from src.utils.agent_registry import get_session, remove_session
 from langchain_community.chat_models import ChatOpenAI
 from src.config import OPENROUTER_API_KEY
 
@@ -32,4 +32,5 @@ async def give_answers(req: BodyRequest):
                      max_tokens=1024)
     consolidator = ConsolidatorAgent(responses, llm)
     consolidator.run(get_doc())
+    remove_session(req.phone_number)
     return consolidator.response
